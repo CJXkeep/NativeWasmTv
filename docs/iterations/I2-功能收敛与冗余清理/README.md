@@ -133,3 +133,4 @@
 | 2026-09-25 | C 完成：设置项 26 → 11，控制页 72 KB → 60 KB；`MainActivity` 删 11 个 settings 分支 |
 | 2026-09-25 | D 第一批完成：抽出 6 个工具类，`MainActivity` 6778 → 6023 行；设备回归 4 频道全 1080p |
 | 2026-09-25 | 清理后复核（宿主侧）：内置源 35/35 可用、≥720p 100%、新失效 0 条，I1 合并的 15 条备用线路全部通过 → [`reports/`](./reports/check-builtin_channels-2026-09-25-rerun.md) |
+| 2026-09-25 | 清理后复核（设备侧）：央视频道 6 个频道全起播、首帧 1.1~2.3s；3 个仅 `webview://` 的频道由 CJS CMG runtime 解析出流，未覆盖 `onStreamDiscovered` → [`reports/`](./reports/device-sample-webview-2026-09-25.md) |
