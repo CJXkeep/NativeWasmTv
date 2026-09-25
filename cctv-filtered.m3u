@@ -1,0 +1,495 @@
+#EXTM3U
+# 由聚合源全量实测筛选生成：仅保留可访问且返回有效 m3u8 的线路
+# 频道标签内依次为 分辨率 / 最高码率 / 探测延迟
+#EXTINF:-1 group-title="筛选源",安多卫视 [232ms]
+https://liveout.xntv.tv/a65jur/96iln2.m3u8
+#EXTINF:-1 group-title="筛选源",安徽卫视 [1017ms]
+http://198.204.228.26/live/ahwshd.m3u8
+#EXTINF:-1 group-title="筛选源",安徽卫视 [1053ms]
+http://204.12.221.218:8181/3m1080p/ahws.m3u8
+#EXTINF:-1 group-title="筛选源",安徽卫视 [1125ms]
+http://107.150.60.122/live/ahwshd.m3u8
+#EXTINF:-1 group-title="筛选源",安徽卫视 [1575ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=ahwshd
+#EXTINF:-1 group-title="筛选源",澳门卫视 [3,000kbps 664ms]
+http://php.jdshipin.com:8880/TVOD/iptv.php?id=as
+#EXTINF:-1 group-title="筛选源",北京卫视 [44ms]
+http://120.76.248.139/live/bfgd/4200000083.m3u8
+#EXTINF:-1 group-title="筛选源",北京卫视 [931ms]
+http://38.75.136.137:98/gslb/dsdqbv/bjwshd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",北京卫视 [1123ms]
+http://107.150.60.122/live/bjwshd.m3u8
+#EXTINF:-1 group-title="筛选源",北京卫视 [1565ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=bjwshd
+#EXTINF:-1 group-title="筛选源",重庆卫视 [1158ms]
+http://107.150.60.122/live/cqwshd.m3u8
+#EXTINF:-1 group-title="筛选源",重庆卫视 [2910ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cqwshd
+#EXTINF:-1 group-title="筛选源",大湾区卫视 [968ms]
+http://38.75.136.137:98/gslb/dsdqpub/nfws.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",大湾区卫视 [1018ms]
+http://198.204.228.26/live/nfws.m3u8
+#EXTINF:-1 group-title="筛选源",大湾区卫视 [1067ms]
+http://107.150.60.122/live/nfws.m3u8
+#EXTINF:-1 group-title="筛选源",大湾区卫视 [1959ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=nfws
+#EXTINF:-1 group-title="筛选源",东方卫视 [144ms]
+https://txmov2.a.kwimgs.com/bs3/video-hls/5219953535631090825_hlsb.m3u8
+#EXTINF:-1 group-title="筛选源",东方卫视 [199ms]
+http://bp-resource-dfl.bestv.cn/148/3/video.m3u8
+#EXTINF:-1 group-title="筛选源",东方卫视 [200ms]
+http://bp-resource-dfl.bestv.cn/155/3/video.m3u8
+#EXTINF:-1 group-title="筛选源",东方卫视 [955ms]
+http://38.75.136.137:98/gslb/dsdqbv/dfwshd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",东方卫视 [1103ms]
+http://107.150.60.122/live/dfwshd.m3u8
+#EXTINF:-1 group-title="筛选源",东方卫视 [1553ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=dfwshd
+#EXTINF:-1 group-title="筛选源",东方卫视 [1584ms]
+http://38.75.136.137:98/gslb/dsdqpub/dfwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",东南卫视 [46ms]
+http://120.76.248.139/live/bfgd/4200000483.m3u8
+#EXTINF:-1 group-title="筛选源",东南卫视 [947ms]
+http://38.75.136.137:98/gslb/dsdqpub/dnwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",东南卫视 [1550ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=dnwshd
+#EXTINF:-1 group-title="筛选源",东南卫视 [1704ms]
+http://107.150.60.122/live/dnwshd.m3u8
+#EXTINF:-1 group-title="筛选源",凤凰卫视 [2387ms]
+https://7612-5516-affc-d88b.kylintv.tv/live/pxinhd_iphone.m3u8
+#EXTINF:-1 group-title="筛选源",凤凰卫视台 [5,000kbps 619ms]
+http://php.jdshipin.com/TVOD/iptv.php?id=fhzw
+#EXTINF:-1 group-title="筛选源",福建海峡卫视 [1920x1080 2,891kbps 402ms]
+http://38.64.72.148:80/hls/modn/list/4009/playlist.m3u8
+#EXTINF:-1 group-title="筛选源",福建海峡卫视 [1920x1080 2,891kbps 414ms]
+http://38.64.72.148/hls/modn/list/4009/playlist.m3u8
+#EXTINF:-1 group-title="筛选源",福建海峡卫视 [411ms]
+http://38.64.72.148:80/hls/modn/list/4009/chunklist0.m3u8
+#EXTINF:-1 group-title="筛选源",福建海峡卫视 [2255ms]
+http://r.jdshipin.com/WtYt3
+#EXTINF:-1 group-title="筛选源",甘肃卫视 [48ms]
+http://120.76.248.139/live/bfgd/4200000119.m3u8
+#EXTINF:-1 group-title="筛选源",甘肃卫视 [925ms]
+http://38.75.136.137:98/gslb/dsdqpub/gswshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",甘肃卫视 [1538ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=gswshd
+#EXTINF:-1 group-title="筛选源",广东卫视 [48ms]
+http://120.76.248.139/live/bfgd/4200000092.m3u8
+#EXTINF:-1 group-title="筛选源",广东卫视 [941ms]
+http://38.75.136.137:98/gslb/dsdqpub/gdwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",广东卫视 [1117ms]
+http://107.150.60.122/live/gdwshd.m3u8
+#EXTINF:-1 group-title="筛选源",广东卫视 [1530ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=gdwshd
+#EXTINF:-1 group-title="筛选源",广西卫视 [45ms]
+http://120.76.248.139/live/bfgd/4200000116.m3u8
+#EXTINF:-1 group-title="筛选源",广西卫视 [1009ms]
+http://198.204.228.26/live/gxwshd.m3u8
+#EXTINF:-1 group-title="筛选源",广西卫视 [1101ms]
+http://107.150.60.122/live/gxwshd.m3u8
+#EXTINF:-1 group-title="筛选源",广西卫视 [1120ms]
+http://38.75.136.137:98/gslb/dsdqpub/gxwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",广西卫视 [1571ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=gxwshd
+#EXTINF:-1 group-title="筛选源",贵州卫视 [963ms]
+http://38.75.136.137:98/gslb/dsdqpub/gzwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",贵州卫视 [1032ms]
+http://204.12.221.218:8181/3m1080p/gzws.m3u8
+#EXTINF:-1 group-title="筛选源",贵州卫视 [1091ms]
+http://107.150.60.122/live/gzwshd.m3u8
+#EXTINF:-1 group-title="筛选源",贵州卫视 [2379ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=gzwshd
+#EXTINF:-1 group-title="筛选源",海南卫视 [161ms]
+http://120.76.248.139/live/bfgd/4200000473.m3u8
+#EXTINF:-1 group-title="筛选源",海南卫视 [425ms]
+http://nn.7x9d.cn/地方台8563/海南.php?id=hnws
+#EXTINF:-1 group-title="筛选源",海峡卫视 [8,200kbps 28ms]
+http://8.138.7.223/tv/hxws.m3u8
+#EXTINF:-1 group-title="筛选源",河北卫视 [54ms]
+http://120.76.248.139/live/bfgd/4200000108.m3u8
+#EXTINF:-1 group-title="筛选源",河北卫视 [127ms]
+http://event.pull.hebtv.com/jishi/weishi_tingyun.m3u8
+#EXTINF:-1 group-title="筛选源",河北卫视 [197ms]
+https://event.pull.hebtv.com/live/live101.m3u8
+#EXTINF:-1 group-title="筛选源",河北卫视 [1068ms]
+http://204.12.221.218:8181/3m1080p/hews.m3u8
+#EXTINF:-1 group-title="筛选源",河北卫视 [1573ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=hewshd
+#EXTINF:-1 group-title="筛选源",河北卫视 [4738ms]
+http://38.75.136.137:98/gslb/dsdqpub/hewshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",河南卫视 [85ms]
+http://111.59.139.82:11888/tsfile/live/0139_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 group-title="筛选源",河南卫视 [949ms]
+http://38.75.136.137:98/gslb/dsdqpub/hawshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",河南卫视 [1087ms]
+http://107.150.60.122/live/hawshd.m3u8
+#EXTINF:-1 group-title="筛选源",河南卫视 [1536ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=hawshd
+#EXTINF:-1 group-title="筛选源",河南卫视 [2005ms]
+http://173.208.212.130:8181/720p/haws.m3u8
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [157ms]
+http://120.76.248.139/live/bfgd/4200000095.m3u8
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [343ms]
+https://idclive.hljtv.com:4430/live/hljws_own.m3u8
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [963ms]
+http://38.75.136.137:98/gslb/dsdqpub/hljwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [1039ms]
+http://107.150.60.122/live/hljwshd.m3u8
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [1069ms]
+http://198.204.228.26/live/hljwshd.m3u8
+#EXTINF:-1 group-title="筛选源",黑龙江卫视 [1604ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=hljwshd
+#EXTINF:-1 group-title="筛选源",湖北卫视 [44ms]
+http://120.76.248.139/live/bfgd/4200000102.m3u8
+#EXTINF:-1 group-title="筛选源",湖北卫视 [1042ms]
+http://107.150.60.122/live/hbwshd.m3u8
+#EXTINF:-1 group-title="筛选源",湖北卫视 [1554ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=hbwshd
+#EXTINF:-1 group-title="筛选源",湖南卫视 [91ms]
+http://hlsal-ldvt.qing.mgtv.com/nn_live/nn_x64/dWlwPTEyNy4wLjAuMSZ1aWQ9cWluZy1jbXMmbm5fdGltZXpvbmU9OCZjZG5leF9pZD1hbF9obHNfbGR2dCZ1dWlkPTliODY4NmU5ZTM2YzYwMmMmZT02OTE0NjA0JnY9MSZpZD1ITldTWkdTVCZzPTcwN2RiYTc2YzJjNmJmMTQ4MmUyZGYzOWU2NWM3YWFi/HNWSZGST.m3u8
+#EXTINF:-1 group-title="筛选源",湖南卫视 [120ms]
+https://txmov2.a.kwimgs.com/bs3/video-hls/5199687338554291078_hlsb.m3u8
+#EXTINF:-1 group-title="筛选源",湖南卫视 [1068ms]
+http://74.91.26.218:82/live/hnwshd.m3u8
+#EXTINF:-1 group-title="筛选源",湖南卫视 [2058ms]
+http://107.150.60.122/live/hnwshd.m3u8
+#EXTINF:-1 group-title="筛选源",湖南卫视 [2693ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=hnwshd
+#EXTINF:-1 group-title="筛选源",吉林卫视 [1082ms]
+http://107.150.60.122/live/jlwshd.m3u8
+#EXTINF:-1 group-title="筛选源",吉林卫视 [1584ms]
+http://38.75.136.137:98/gslb/dsdqpub/jlwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",吉林卫视 [1640ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=jlwshd
+#EXTINF:-1 group-title="筛选源",江苏卫视 [975ms]
+http://38.75.136.137:98/gslb/dsdqpub/jswshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",江苏卫视 [984ms]
+http://38.75.136.137:98/gslb/dsdqbv/jswshd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",江苏卫视 [1100ms]
+http://107.150.60.122/live/jswshd.m3u8
+#EXTINF:-1 group-title="筛选源",江苏卫视 [1551ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=jswshd
+#EXTINF:-1 group-title="筛选源",江西卫视 [935ms]
+http://38.75.136.137:98/gslb/dsdqpub/jxwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",江西卫视 [959ms]
+http://112.27.5.218:9901/tsfile/live/faacts/0138_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 group-title="筛选源",江西卫视 [1579ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=jxwshd
+#EXTINF:-1 group-title="筛选源",江西卫视 [2057ms]
+http://107.150.60.122/live/jxwshd.m3u8
+#EXTINF:-1 group-title="筛选源",辽宁卫视 [966ms]
+http://38.75.136.137:98/gslb/dsdqpub/lnwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",辽宁卫视 [1032ms]
+http://198.204.228.26/live/lnwshd.m3u8
+#EXTINF:-1 group-title="筛选源",辽宁卫视 [1036ms]
+http://204.12.221.218:8181/3m1080p/lnws.m3u8
+#EXTINF:-1 group-title="筛选源",辽宁卫视 [1064ms]
+http://107.150.60.122/live/lnwshd.m3u8
+#EXTINF:-1 group-title="筛选源",辽宁卫视 [1726ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=lnwshd
+#EXTINF:-1 group-title="筛选源",内蒙古卫视 [149ms]
+http://120.76.248.139/live/bfgd/4200000110.m3u8
+#EXTINF:-1 group-title="筛选源",内蒙古卫视 [218ms]
+http://play1-qk.nmtv.cn/live/1769652018126032.m3u8
+#EXTINF:-1 group-title="筛选源",内蒙古卫视 [1043ms]
+http://107.150.60.122/live/nmgws.m3u8
+#EXTINF:-1 group-title="筛选源",内蒙古卫视 [2258ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=nmgws
+#EXTINF:-1 group-title="筛选源",宁夏卫视 [47ms]
+http://120.76.248.139/live/bfgd/4200000118.m3u8
+#EXTINF:-1 group-title="筛选源",宁夏卫视 [1010ms]
+http://198.204.228.26/live/nxws.m3u8
+#EXTINF:-1 group-title="筛选源",宁夏卫视 [1072ms]
+http://107.150.60.122/live/nxws.m3u8
+#EXTINF:-1 group-title="筛选源",农林卫视 [159ms]
+http://120.76.248.139/live/bfgd/4200000122.m3u8
+#EXTINF:-1 group-title="筛选源",青海卫视 [41ms]
+http://120.76.248.139/live/bfgd/4200000111.m3u8
+#EXTINF:-1 group-title="筛选源",青海卫视 [200ms]
+https://hls-qhmh.lanzhousobey.cn/qhmh/mhds.m3u8
+#EXTINF:-1 group-title="筛选源",青海卫视 [1079ms]
+http://107.150.60.122/live/qhws.m3u8
+#EXTINF:-1 group-title="筛选源",青海卫视 [2116ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=qhws
+#EXTINF:-1 group-title="筛选源",人间卫视 [223ms]
+http://61.216.67.119:1935/bltvhd/bltv1/chunklist_w1266569526.m3u
+#EXTINF:-1 group-title="筛选源",人间卫视 [223ms]
+http://61.216.67.119:1935/bltvhd/bltv1/chunklist_w1266569526.m3u8
+#EXTINF:-1 group-title="筛选源",三沙卫视 [640ms]
+http://nn.7x9d.cn/地方台8563/海南.php?id=ssws
+#EXTINF:-1 group-title="筛选源",三沙卫视 [953ms]
+http://38.75.136.137:98/gslb/dsdqpub/ssws.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",三沙卫视 [1019ms]
+http://198.204.228.26/live/ssws.m3u8
+#EXTINF:-1 group-title="筛选源",三沙卫视 [1052ms]
+http://107.150.60.122/live/ssws.m3u8
+#EXTINF:-1 group-title="筛选源",三沙卫视 [3479ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=ssws
+#EXTINF:-1 group-title="筛选源",厦门卫视 [1019ms]
+http://198.204.228.26/live/xmws.m3u8
+#EXTINF:-1 group-title="筛选源",厦门卫视 [1042ms]
+http://107.150.60.122/live/xmws.m3u8
+#EXTINF:-1 group-title="筛选源",厦门卫视 [1044ms]
+http://192.151.150.154/live/xmws.m3u8
+#EXTINF:-1 group-title="筛选源",厦门卫视 [1885ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=xmws
+#EXTINF:-1 group-title="筛选源",山东卫视 [32ms]
+http://120.76.248.139/live/bfgd/4200000099.m3u8
+#EXTINF:-1 group-title="筛选源",山东卫视 [1002ms]
+http://198.204.228.26/live/sdwshd.m3u8
+#EXTINF:-1 group-title="筛选源",山东卫视 [1010ms]
+http://107.150.60.122/live/sdwshd.m3u8
+#EXTINF:-1 group-title="筛选源",山东卫视 [1193ms]
+http://38.75.136.137:98/gslb/dsdqpub/sdwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",山东卫视 [2631ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=sdwshd
+#EXTINF:-1 group-title="筛选源",山西卫视 [1020ms]
+http://107.150.60.122/live/sxwshd.m3u8
+#EXTINF:-1 group-title="筛选源",山西卫视 [1071ms]
+http://204.12.221.218:8181/3m1080p/sxws.m3u8
+#EXTINF:-1 group-title="筛选源",山西卫视 [3971ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=sxwshd
+#EXTINF:-1 group-title="筛选源",陕西卫视 [1013ms]
+http://107.150.60.122/live/snwshd.m3u8
+#EXTINF:-1 group-title="筛选源",陕西卫视 [2051ms]
+http://192.151.150.154/live/snwshd.m3u8
+#EXTINF:-1 group-title="筛选源",陕西卫视 [2244ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=snwshd
+#EXTINF:-1 group-title="筛选源",深圳卫视 [1920x1080 2,891kbps 462ms]
+http://38.64.72.148:80/hls/modn/list/4007/playlist.m3u8
+#EXTINF:-1 group-title="筛选源",深圳卫视 [35ms]
+http://120.76.248.139/live/bfgd/4200000100.m3u8
+#EXTINF:-1 group-title="筛选源",深圳卫视 [926ms]
+http://38.75.136.137:98/gslb/dsdqpub/szwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",深圳卫视 [1048ms]
+http://107.150.60.122/live/szwshd.m3u8
+#EXTINF:-1 group-title="筛选源",深圳卫视 [2240ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=szwshd
+#EXTINF:-1 group-title="筛选源",四川卫视 [961ms]
+http://38.75.136.137:98/gslb/dsdqpub/scwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",四川卫视 [1065ms]
+http://107.150.60.122/live/scwshd.m3u8
+#EXTINF:-1 group-title="筛选源",四川卫视 [2362ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=scwshd
+#EXTINF:-1 group-title="筛选源",天津卫视 [1043ms]
+http://107.150.60.122/live/tjwshd.m3u8
+#EXTINF:-1 group-title="筛选源",天津卫视 [1958ms]
+http://38.75.136.137:98/gslb/dsdqpub/tjwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",天津卫视 [3289ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=tjwshd
+#EXTINF:-1 group-title="筛选源",西藏卫视 [149ms]
+http://120.76.248.139/live/bfgd/4200000121.m3u8
+#EXTINF:-1 group-title="筛选源",西藏卫视 [966ms]
+http://112.27.5.218:9901/tsfile/live/0111_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 group-title="筛选源",西藏卫视 [1086ms]
+http://107.150.60.122/live/xzws.m3u8
+#EXTINF:-1 group-title="筛选源",西藏卫视 [2673ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=xzws
+#EXTINF:-1 group-title="筛选源",香港卫视 [0kbps 413ms]
+http://webcast.hkstv.tv/livestream/mutfysrq/playlist.m3u8
+#EXTINF:-1 group-title="筛选源",新疆卫视 [930ms]
+http://38.75.136.137:98/gslb/dsdqpub/xjws.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",新疆卫视 [1026ms]
+http://198.204.228.26/live/xjws.m3u8
+#EXTINF:-1 group-title="筛选源",新疆卫视 [1027ms]
+http://107.150.60.122/live/xjws.m3u8
+#EXTINF:-1 group-title="筛选源",新疆卫视 [2660ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=xjws
+#EXTINF:-1 group-title="筛选源",延边卫视 [35ms]
+http://120.76.248.139/live/bfgd/4200000117.m3u8
+#EXTINF:-1 group-title="筛选源",延边卫视 [162ms]
+https://srs.iyb983.cn/video/CYS/index.m3u8
+#EXTINF:-1 group-title="筛选源",延边卫视 [167ms]
+https://srs.iyb983.cn:443/video/CYS/index.m3u8
+#EXTINF:-1 group-title="筛选源",央视台球 [946ms]
+http://38.75.136.137:98/gslb/dsdqpub/ystq.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",央视台球 [1044ms]
+http://107.150.60.122/live/ystq.m3u8
+#EXTINF:-1 group-title="筛选源",央视台球 [2213ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=ystq
+#EXTINF:-1 group-title="筛选源",云南卫视 [158ms]
+http://120.76.248.139/live/bfgd/4200000482.m3u8
+#EXTINF:-1 group-title="筛选源",云南卫视 [1028ms]
+http://107.150.60.122/live/ynwshd.m3u8
+#EXTINF:-1 group-title="筛选源",云南卫视 [1037ms]
+http://192.151.150.154/live/ynwshd.m3u8
+#EXTINF:-1 group-title="筛选源",云南卫视 [2113ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=ynwshd
+#EXTINF:-1 group-title="筛选源",浙江卫视 [80ms]
+http://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
+#EXTINF:-1 group-title="筛选源",浙江卫视 [111ms]
+https://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
+#EXTINF:-1 group-title="筛选源",浙江卫视 [134ms]
+http://ali-m-l.cztv.com/channels/lantian/channel01/1080p.m3u8
+#EXTINF:-1 group-title="筛选源",浙江卫视 [927ms]
+http://38.75.136.137:98/gslb/dsdqpub/zjwshd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",浙江卫视 [1023ms]
+http://107.150.60.122/live/zjwshd.m3u8
+#EXTINF:-1 group-title="筛选源",浙江卫视 [3262ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=zjwshd
+#EXTINF:-1 group-title="筛选源",CCTV-1 [999ms]
+http://198.204.228.26/live/cctv1hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-1 [1014ms]
+http://204.12.221.218:8181/3m1080p/cctv1.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-1 [1078ms]
+http://74.91.26.218:82/live/cctv1hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-1 [1151ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv1hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-1 [1587ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv1hd
+#EXTINF:-1 group-title="筛选源",CCTV-10 [961ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv10hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-10 [1029ms]
+http://204.12.221.218:8181/3m1080p/cctv10.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-10 [1397ms]
+http://74.91.26.218:82/live/cctv10hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-10 [1672ms]
+http://69.30.245.50/live/cctv10.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-10 [5142ms]
+http://bztv.tvbus.cc:8081/cdnlive/cctv10.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-11 [948ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv11hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-11 [954ms]
+http://38.75.136.137:98/gslb/dsdqpub/cctv11hd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",CCTV-11 [1006ms]
+http://198.204.228.26/live/cctv11hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-11 [1034ms]
+http://204.12.221.218:8181/3m1080p/cctv11.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-11 [2004ms]
+http://74.91.26.218:82/live/cctv11hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-12 [957ms]
+http://38.75.136.137:98/gslb/dsdqpub/cctv12hd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",CCTV-12 [1120ms]
+http://107.150.60.122/live/cctv12hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-12 [1165ms]
+http://74.91.26.218:82/live/cctv12hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-12 [2063ms]
+http://204.12.221.218:8181/3m1080p/cctv12.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-12 [3378ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv12hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-13 [32ms]
+http://120.76.248.139/live/bfgd/4200000067.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-13 [956ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv13hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-13 [1197ms]
+http://74.91.26.218:82/live/cctv13hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-13 [1564ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv13hd
+#EXTINF:-1 group-title="筛选源",CCTV-13 [2094ms]
+http://bztv.tvbus.cc:8081/cdnlive/cctv13.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-14 [964ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv14hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-14 [1005ms]
+http://74.91.26.218:82/live/cctv14hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-14 [1016ms]
+http://198.204.228.26/live/cctv14hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-14 [1045ms]
+http://204.12.221.218:8181/3m1080p/cctv14.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-14 [1534ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv14hd
+#EXTINF:-1 group-title="筛选源",CCTV-15 [981ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv15hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-15 [1024ms]
+http://204.12.221.218:8181/3m1080p/cctv15.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-15 [1030ms]
+http://74.91.26.218:82/live/cctv15hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-15 [1043ms]
+http://198.204.228.26/live/cctv15hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-15 [1576ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv15hd
+#EXTINF:-1 group-title="筛选源",CCTV-16 [679ms]
+http://207.56.13.146:81/cdnlive/cctv16.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-16 [945ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv16hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-16 [1119ms]
+http://38.75.136.137:98/gslb/dsdqpub/cctv16hd.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",CCTV-17 [914ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv17hd.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-17 [1047ms]
+http://74.91.26.218:82/live/cctv17hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-17 [1576ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv17hd
+#EXTINF:-1 group-title="筛选源",CCTV-2 [1033ms]
+http://204.12.221.218:8181/3m1080p/cctv2.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-2 [1042ms]
+http://192.151.150.154/live/cctv2hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-2 [1049ms]
+http://198.204.228.26/live/cctv2hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-2 [1068ms]
+http://bztv.tvbus.cc:8081/cdnlive/cctv2.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-2 [1089ms]
+http://107.150.60.122/live/cctv2hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-3 [80ms]
+http://112.30.73.119:229/tsfile/live/0003_2.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 group-title="筛选源",CCTV-3 [1044ms]
+http://74.91.26.218:82/live/cctv3hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-3 [1085ms]
+http://107.150.60.122/live/cctv3hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-3 [1450ms]
+http://69.30.245.50/live/cctv3.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-3 [1583ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv3hd
+#EXTINF:-1 group-title="筛选源",CCTV-4 [127ms]
+https://raw.githubusercontent.com/ChiSheng9/iptv/master/TV20.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-4 [700ms]
+http://207.56.13.146:81/cdnlive/cctv4.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-4 [935ms]
+http://38.75.136.137:98/gslb/dsdqpub/cctv4k.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",CCTV-4 [997ms]
+http://173.208.212.130:8181/1080p/cctv4.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-4 [1052ms]
+http://74.91.26.218:82/live/cctv4hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-4 [1081ms]
+http://107.150.60.122/live/cctv4hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-5 [77ms]
+http://112.30.73.119:9901/tsfile/live/0005_2.m3u8?key=txiptv&playlive=0&authid=0
+#EXTINF:-1 group-title="筛选源",CCTV-5 [668ms]
+http://207.56.13.146:81/cdnlive/cctv5.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-5 [986ms]
+http://38.75.136.137:98/gslb/dsdqpub/cctv5p.m3u8?auth=testpub
+#EXTINF:-1 group-title="筛选源",CCTV-5 [1093ms]
+http://107.150.60.122/live/cctv5hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-5 [2026ms]
+http://173.208.212.130:8181/720p/cctv5.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-5+ [47ms]
+http://120.76.248.139/live/bfgd/4200000246.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-5+ [958ms]
+http://38.75.136.137:98/gslb/dsdqbv/cctv5p.m3u8?auth=test20251009
+#EXTINF:-1 group-title="筛选源",CCTV-6 [1002ms]
+http://198.204.228.26/live/cctv6hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-6 [1081ms]
+http://74.91.26.218:82/live/cctv6hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-6 [1584ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv6hd
+#EXTINF:-1 group-title="筛选源",CCTV-6 [1594ms]
+http://198.204.240.250:82/live/cctv6.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-6 [1888ms]
+http://69.30.245.50/live/cctv6.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-7 [772ms]
+http://207.56.13.146:81/cdnlive/cctv7.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-7 [1018ms]
+http://74.91.26.218:82/live/cctv7hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-7 [1069ms]
+http://107.150.60.122/live/cctv7hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-7 [1629ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv7hd
+#EXTINF:-1 group-title="筛选源",CCTV-7 [2072ms]
+http://69.30.245.50/live/cctv7.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-8 [644ms]
+http://207.56.13.146:81/cdnlive/cctv8.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-8 [1234ms]
+http://74.91.26.218:82/live/cctv8hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-8 [1596ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv8k
+#EXTINF:-1 group-title="筛选源",CCTV-8 [1742ms]
+http://69.30.245.50/live/cctv8.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-9 [1030ms]
+http://198.204.228.26/live/cctv9hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-9 [1039ms]
+http://192.151.150.154/live/cctv9hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-9 [1051ms]
+http://74.91.26.218:82/live/cctv9hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-9 [1090ms]
+http://107.150.60.122/live/cctv9hd.m3u8
+#EXTINF:-1 group-title="筛选源",CCTV-9 [1573ms]
+http://63.141.230.178:82/gslb/zbdq5.m3u8?id=cctv9hd

@@ -5,6 +5,8 @@
 webview://https://yangshipin.cn/tv/home?pid=600001859
 #EXTINF:-1 tvg-id="CCTV1" group-title="央视频道",CCTV-1 综合
 https://ldncctvwbcdcnc.v.wscdns.com/ldncctvwbcd/cdrmldcctv1_1/index.m3u8?b=200-4000
+#EXTINF:-1 tvg-id="CCTV1" group-title="央视频道",CCTV-1 综合
+http://74.91.26.218:82/live/cctv1hd.m3u8
 #EXTINF:-1 tvg-id="CCTV2" group-title="央视频道",CCTV-2 财经
 webview://https://yangshipin.cn/tv/home?pid=600001800
 #EXTINF:-1 tvg-id="CCTV2" group-title="央视频道",CCTV-2 财经
@@ -13,6 +15,8 @@ https://ldocctvwbcdbyte.volcfcdn.com/ldocctvwbcd/cdrmldcctv2_1/index.m3u8?b=200-
 webview://https://yangshipin.cn/tv/home?pid=600001801
 #EXTINF:-1 tvg-id="CCTV3" group-title="央视频道",CCTV-3 综艺
 https://ldocctvwbcdks.v.kcdnvip.com/ldocctvwbcd/cdrmldcctv3_1/index.m3u8?b=200-4000
+#EXTINF:-1 tvg-id="CCTV3" group-title="央视频道",CCTV-3 综艺
+http://112.30.73.119:229/tsfile/live/0003_2.m3u8?key=txiptv&playlive=0&authid=0
 #EXTINF:-1 tvg-id="CCTV4" group-title="央视频道",CCTV-4 中文国际（亚）
 webview://https://yangshipin.cn/tv/home?pid=600001814
 #EXTINF:-1 tvg-id="CCTV4" group-title="央视频道",CCTV-4 中文国际（亚）
@@ -21,6 +25,8 @@ https://ldocctvwbcdbyte.volcfcdn.com/ldocctvwbcd/cdrmldcctv4_1/index.m3u8?b=200-
 webview://https://yangshipin.cn/tv/home?pid=600001818
 #EXTINF:-1 tvg-id="CCTV5" group-title="央视频道",CCTV-5 体育
 https://ldcctvwbcdks.v.kcdnvip.com/ldcctvwbcd/cdrmldcctv5_1/index.m3u8?b=200-4000
+#EXTINF:-1 tvg-id="CCTV5" group-title="央视频道",CCTV-5 体育
+http://112.30.73.119:9901/tsfile/live/0005_2.m3u8?key=txiptv&playlive=0&authid=0
 #EXTINF:-1 tvg-id="CCTV5+" group-title="央视频道",CCTV-5+ 体育赛事
 webview://https://yangshipin.cn/tv/home?pid=600001817
 #EXTINF:-1 tvg-id="CCTV5+" group-title="央视频道",CCTV-5+ 体育赛事
@@ -41,6 +47,8 @@ https://ldocctvwbcdks.v.kcdnvip.com/ldocctvwbcd/cdrmldcctv8_1/index.m3u8?b=200-4
 webview://https://yangshipin.cn/tv/home?pid=600004078
 #EXTINF:-1 tvg-id="CCTV9" group-title="央视频道",CCTV-9 纪录
 https://ldocctvwbcdbyte.volcfcdn.com/ldocctvwbcd/cdrmldcctvjilu_1/index.m3u8?b=200-4000
+#EXTINF:-1 tvg-id="CCTV9" group-title="央视频道",CCTV-9 纪录
+http://74.91.26.218:82/live/cctv9hd.m3u8
 #EXTINF:-1 tvg-id="CCTV10" group-title="央视频道",CCTV-10 科教
 webview://https://yangshipin.cn/tv/home?pid=600001805
 #EXTINF:-1 tvg-id="CCTV10" group-title="央视频道",CCTV-10 科教
@@ -53,6 +61,8 @@ https://ldocctvwbcdbyte.volcfcdn.com/ldocctvwbcd/cdrmldcctv11_1/index.m3u8?b=200
 webview://https://yangshipin.cn/tv/home?pid=600001807
 #EXTINF:-1 tvg-id="CCTV12" group-title="央视频道",CCTV-12 社会与法
 https://ldocctvwbcdbyte.volcfcdn.com/ldocctvwbcd/cdrmldcctv12_1/index.m3u8?b=200-4000
+#EXTINF:-1 tvg-id="CCTV12" group-title="央视频道",CCTV-12 社会与法
+http://74.91.26.218:82/live/cctv12hd.m3u8
 #EXTINF:-1 tvg-id="CCTV13" group-title="央视频道",CCTV-13 新闻
 webview://https://yangshipin.cn/tv/home?pid=600001811
 #EXTINF:-1 tvg-id="CCTV13" group-title="央视频道",CCTV-13 新闻
@@ -108,8 +118,18 @@ webview://https://yangshipin.cn/tv/home?pid=600002309
 webview://https://yangshipin.cn/tv/home?pid=600002521
 #EXTINF:-1 group-title="卫视频道",东方卫视
 webview://https://yangshipin.cn/tv/home?pid=600002483
+#EXTINF:-1 group-title="卫视频道",东方卫视
+http://bp-resource-dfl.bestv.cn/148/3/video.m3u8
+#EXTINF:-1 group-title="卫视频道",东方卫视
+http://bp-resource-dfl.bestv.cn/155/3/video.m3u8
 #EXTINF:-1 group-title="卫视频道",浙江卫视
 webview://https://yangshipin.cn/tv/home?pid=600002520
+#EXTINF:-1 group-title="卫视频道",浙江卫视
+https://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
+#EXTINF:-1 group-title="卫视频道",浙江卫视
+http://ali-m-l.cztv.com/channels/lantian/channel001/1080p.m3u8
+#EXTINF:-1 group-title="卫视频道",浙江卫视
+http://ali-m-l.cztv.com/channels/lantian/channel01/1080p.m3u8
 #EXTINF:-1 group-title="卫视频道",湖南卫视
 webview://https://yangshipin.cn/tv/home?pid=600002475
 #EXTINF:-1 group-title="卫视频道",湖北卫视
@@ -126,6 +146,8 @@ webview://https://yangshipin.cn/tv/home?pid=600002506
 webview://https://yangshipin.cn/tv/home?pid=600002531
 #EXTINF:-1 group-title="卫视频道",深圳卫视
 webview://https://yangshipin.cn/tv/home?pid=600002481
+#EXTINF:-1 group-title="卫视频道",深圳卫视
+http://38.64.72.148:80/hls/modn/list/4007/playlist.m3u8
 #EXTINF:-1 group-title="卫视频道",四川卫视
 webview://https://yangshipin.cn/tv/home?pid=600002516
 #EXTINF:-1 group-title="卫视频道",河南卫视
@@ -142,6 +164,8 @@ webview://https://yangshipin.cn/tv/home?pid=600002505
 webview://https://yangshipin.cn/tv/home?pid=600002532
 #EXTINF:-1 group-title="卫视频道",河北卫视
 webview://https://yangshipin.cn/tv/home?pid=600002493
+#EXTINF:-1 group-title="卫视频道",河北卫视
+https://event.pull.hebtv.com/live/live101.m3u8
 #EXTINF:-1 group-title="卫视频道",山东卫视
 webview://https://yangshipin.cn/tv/home?pid=600002513
 #EXTINF:-1 group-title="卫视频道",天津卫视
@@ -156,15 +180,22 @@ webview://https://yangshipin.cn/tv/home?pid=600190408
 webview://https://yangshipin.cn/tv/home?pid=600190737
 #EXTINF:-1 group-title="卫视频道",内蒙古卫视
 webview://https://yangshipin.cn/tv/home?pid=600190401
+#EXTINF:-1 group-title="卫视频道",内蒙古卫视
+http://play1-qk.nmtv.cn/live/1769652018126032.m3u8
 #EXTINF:-1 group-title="卫视频道",云南卫视
 webview://https://yangshipin.cn/tv/home?pid=600190402
 #EXTINF:-1 group-title="卫视频道",山西卫视
 webview://https://yangshipin.cn/tv/home?pid=600190407
 #EXTINF:-1 group-title="卫视频道",青海卫视
 webview://https://yangshipin.cn/tv/home?pid=600190406
+#EXTINF:-1 group-title="卫视频道",青海卫视
+https://hls-qhmh.lanzhousobey.cn/qhmh/mhds.m3u8
 #EXTINF:-1 group-title="卫视频道",西藏卫视
 webview://https://yangshipin.cn/tv/home?pid=600190403
 #EXTINF:-1 group-title="卫视频道",中国教育电视台1频道
 webview://https://yangshipin.cn/tv/home?pid=600171827
 #EXTINF:-1 group-title="卫视频道",新疆卫视
 webview://https://yangshipin.cn/tv/home?pid=600152138
+
+#EXTINF:-1 group-title="卫视频道",凤凰卫视
+https://7612-5516-affc-d88b.kylintv.tv/live/pxinhd_iphone.m3u8
