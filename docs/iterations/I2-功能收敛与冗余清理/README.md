@@ -134,3 +134,4 @@
 | 2026-09-25 | D 第一批完成：抽出 6 个工具类，`MainActivity` 6778 → 6023 行；设备回归 4 频道全 1080p |
 | 2026-09-25 | 清理后复核（宿主侧）：内置源 35/35 可用、≥720p 100%、新失效 0 条，I1 合并的 15 条备用线路全部通过 → [`reports/`](./reports/check-builtin_channels-2026-09-25-rerun.md) |
 | 2026-09-25 | 清理后复核（设备侧）：央视频道 6 个频道全起播、首帧 1.1~2.3s；3 个仅 `webview://` 的频道由 CJS CMG runtime 解析出流，未覆盖 `onStreamDiscovered` → [`reports/`](./reports/device-sample-webview-2026-09-25.md) |
+| 2026-09-25 | 清理后复核（设备侧·卫视）：7 个频道 6 个 OK；**凤凰卫视**唯一线路被上游 403 拒绝、静默冻结帧（新增线路的设备侧不可用）；连续换台 12/12、持续播放 120s 无中断 → [`reports/`](./reports/device-sample-satellite-2026-09-25.md) |
