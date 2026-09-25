@@ -104,11 +104,6 @@ android {
             jni.srcDirs = []
             jniLibs.srcDirs = ['src/main/libs']
         }
-        debug {
-            // Debug builds serve the Pages files directly from the TV. Release builds
-            // fetch the same files through GithubProxy and therefore do not package them.
-            assets.srcDirs = [rootProject.file('docs')]
-        }
     }
 
     compileOptions {
@@ -122,6 +117,14 @@ dependencies {
     // 3.12.x is the final OkHttp branch that supports Android 4.4 and Java 7.
     implementation 'com.squareup.okhttp3:okhttp:3.12.13'
     implementation 'com.squareup.okhttp3:okhttp-urlconnection:3.12.13'
+    // JVM regression checks (app/src/test) run without a device or network.
+    testImplementation 'junit:junit:4.12'
+}
+
+tasks.withType(Test) {
+    // 内置源是这些用例的真实输入：Gradle 默认看不见它，改坏源不会让测试重跑。
+    inputs.file(rootProject.file('app/src/main/assets/builtin_channels.txt'))
+            .withPropertyName('builtinChannels')
 }
 
 task generateVersionFile {
