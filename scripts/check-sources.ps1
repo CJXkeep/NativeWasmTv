@@ -22,11 +22,12 @@
 # 用法：
 #   pwsh -File check-sources.ps1                                  # 巡检内置源
 #   pwsh -File check-sources.ps1 -Playlist <m3u> -OutDir <dir>
-#   pwsh -File check-sources.ps1 -Baseline reports/check-<date>.json   # 跨期对比
+#   pwsh -File check-sources.ps1 -Baseline docs/reports/check-<date>.json   # 跨期对比
+#   pwsh -File check-sources.ps1                                            # 退出码：0=发布门禁通过，1=存在「全死且无 webview 兜底」的频道
 
 param(
-    [string]$Playlist = "$PSScriptRoot\..\..\..\..\app\src\main\assets\builtin_channels.txt",
-    [string]$OutDir = "$PSScriptRoot\..\reports",
+    [string]$Playlist = "$PSScriptRoot\..\app\src\main\assets\builtin_channels.txt",
+    [string]$OutDir = "$PSScriptRoot\..\docs\reports",
     [int]$Parallel = 8,
     [int]$TimeoutMs = 15000,
     [string]$Baseline = '',
@@ -669,3 +670,15 @@ if ($directDeadChannels.Count -gt 0) { "!  直连全失败、仅剩 webview: $($
 "   仅依赖 webview 的频道: $($webviewOnlyChannels.Count) 个（正常状态，非告警）"
 if ($okLow.Count -gt 0) { "!  低于 ${minHeight}p 的线路: $($okLow.Count) 条" }
 if ($blacklisted.Count -gt 0) { "!! 命中黑名单域名: $($blacklisted.Count) 条" }
+
+# ---------- 发布门禁 ----------
+# 只有一类问题是硬门禁：既没有可用直连、又没有 webview:// 兜底的频道——
+# 用户打开它会直接打不开，而其它告警（低画质、仅剩 webview 兜底）都属于「能看但不够好」。
+# 发布流程在打包前先跑本脚本，退出码非 0 即停止。
+""
+if ($deadChannels.Count -gt 0) {
+    "!! 发布门禁未通过：无可用线路的频道 $($deadChannels.Count) 个 —— $($deadChannels -join '、')"
+    exit 1
+}
+"发布门禁通过：无「全死且无 webview 兜底」的频道（仅依赖 webview 的 $($webviewOnlyChannels.Count) 个属正常）"
+exit 0

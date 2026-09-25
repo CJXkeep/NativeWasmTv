@@ -25,7 +25,7 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-if (-not $RepoRoot) { $RepoRoot = (Resolve-Path "$PSScriptRoot\..\..\..\..").Path }
+if (-not $RepoRoot) { $RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path }
 $script:failed = 0
 $script:passed = 0
 
