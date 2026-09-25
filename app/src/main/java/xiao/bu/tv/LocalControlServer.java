@@ -29,14 +29,11 @@ final class LocalControlServer implements Closeable {
     interface Listener {
         String stateJson();
         String control(JSONObject request) throws Exception;
-        String pointer(JSONObject request) throws Exception;
         String settings(JSONObject request) throws Exception;
         String uploadPlaylist(String sourceId, String fileName, byte[] body) throws Exception;
         String uploadKu9Script(String fileName, byte[] body) throws Exception;
         Resource playlistSource(String location) throws Exception;
         String mergePlaylist(JSONObject request) throws Exception;
-        Resource recording(String token) throws Exception;
-        Resource page(String path) throws Exception;
     }
 
     static final class Resource {
@@ -226,20 +223,12 @@ final class LocalControlServer implements Closeable {
         }
         if ("GET".equals(method) && ("/".equals(path) || "/index.html".equals(path))) {
             send(socket, 200, "text/html; charset=utf-8", indexHtml);
-        } else if ("GET".equals(method) && ("/flymouse.html".equals(path)
-                || "/video-recorder.html".equals(path)
-                || "/mp4-finalizer.js".equals(path))) {
-            Resource resource = listener.page(path.substring(1));
-            send(socket, 200, resource.contentType, resource.body);
         } else if ("GET".equals(method) && "/api/state".equals(path)) {
             send(socket, 200, "application/json; charset=utf-8",
                     listener.stateJson().getBytes("UTF-8"));
         } else if ("POST".equals(method) && "/api/control".equals(path)) {
             send(socket, 200, "application/json; charset=utf-8",
                     listener.control(new JSONObject(new String(body, "UTF-8"))).getBytes("UTF-8"));
-        } else if ("POST".equals(method) && "/api/pointer".equals(path)) {
-            send(socket, 200, "application/json; charset=utf-8",
-                    listener.pointer(new JSONObject(new String(body, "UTF-8"))).getBytes("UTF-8"));
         } else if ("POST".equals(method) && "/api/settings".equals(path)) {
             send(socket, 200, "application/json; charset=utf-8",
                     listener.settings(new JSONObject(new String(body, "UTF-8"))).getBytes("UTF-8"));
@@ -260,14 +249,6 @@ final class LocalControlServer implements Closeable {
             send(socket, 200, "application/json; charset=utf-8",
                     listener.mergePlaylist(new JSONObject(new String(body, "UTF-8")))
                             .getBytes("UTF-8"));
-        } else if ("GET".equals(method) && "/api/recording/playlist".equals(path)) {
-            Resource resource = listener.recording(null);
-            send(socket, 200, resource.contentType, resource.body);
-        } else if ("GET".equals(method)
-                && path.startsWith("/api/recording/resource/")) {
-            String token = path.substring("/api/recording/resource/".length());
-            Resource resource = listener.recording(token);
-            send(socket, 200, resource.contentType, resource.body);
         } else if ("OPTIONS".equals(method)) {
             send(socket, 204, "text/plain", new byte[0]);
         } else {

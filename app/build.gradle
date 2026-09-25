@@ -84,9 +84,6 @@ android {
                     '"https://raw.githubusercontent.com/buhanzhe/webSourceM3U8/refs/heads/main/JoyPage.txt"'
             buildConfigField 'String', 'RECOMMENDED_WEBVIEW_SOURCE_URL',
                     '"https://raw.githubusercontent.com/buhanzhe/webSourceM3U8/refs/heads/main/webview.txt"'
-            buildConfigField 'String', 'FLY_MOUSE_PAGE_SOURCE_URL', '""'
-            buildConfigField 'String', 'VIDEO_RECORDER_PAGE_SOURCE_URL', '""'
-            buildConfigField 'String', 'MP4_FINALIZER_SOURCE_URL', '""'
         }
         release {
             minifyEnabled false
@@ -98,12 +95,6 @@ android {
                     '"https://github.com/buhanzhe/webSourceM3U8/releases/latest/download/JoyPage.txt"'
             buildConfigField 'String', 'RECOMMENDED_WEBVIEW_SOURCE_URL',
                     '"https://github.com/buhanzhe/webSourceM3U8/releases/latest/download/webview.txt"'
-            buildConfigField 'String', 'FLY_MOUSE_PAGE_SOURCE_URL',
-                    '"https://raw.githubusercontent.com/buhanzhe/NativeWasmTv/gh-pages/flymouse.html"'
-            buildConfigField 'String', 'VIDEO_RECORDER_PAGE_SOURCE_URL',
-                    '"https://raw.githubusercontent.com/buhanzhe/NativeWasmTv/gh-pages/video-recorder.html"'
-            buildConfigField 'String', 'MP4_FINALIZER_SOURCE_URL',
-                    '"https://raw.githubusercontent.com/buhanzhe/NativeWasmTv/gh-pages/mp4-finalizer.js"'
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

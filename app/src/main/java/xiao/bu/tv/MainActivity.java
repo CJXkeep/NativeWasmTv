@@ -88,8 +88,6 @@ public final class MainActivity extends Activity {
     private static final String LAST_CHANNEL_INDEX = "last_channel_index_v2";
     private static final String LAST_CHANNEL_SNAPSHOT = "last_channel_snapshot_v2";
     private static final String FAVORITE_CHANNEL_KEYS = "favorite_channel_keys_v1";
-    private static final String FAVORITE_GROUP_INDEX_MIGRATED =
-            "favorite_group_index_migrated_v1";
     private static final String CENTRAL_GROUPS_MERGED = "central_groups_merged_v1";
     private static final String REVERSE_UP_DOWN = "reverse_up_down";
     static final String AUTO_START = "auto_start";
@@ -126,8 +124,7 @@ public final class MainActivity extends Activity {
     private static final String WEB_VIEW_RESOLUTION_720P = "720p";
     private static final String WEB_VIEW_RESOLUTION_2K = "2k";
     private static final String WEB_VIEW_LOAD_IMAGES = "web_view_load_images";
-    private static final String WEB_VIEW_AUTO_PLAY_SNIFFED =
-            "web_view_auto_play_sniffed";
+
     private static final String WEB_VIEW_USER_AGENT = "web_view_user_agent";
     private static final String WEB_VIEW_USER_AGENT_WINDOWS = "windows";
     private static final String WEB_VIEW_USER_AGENT_MACOS = "macos";
@@ -148,7 +145,6 @@ public final class MainActivity extends Activity {
     private static final String SHOW_DEBUG_INFO = "show_debug_info";
     private static final String SHOW_NETWORK_SPEED = "show_network_speed";
     private static final String SHOW_DATE = "show_date";
-    private static final String FLY_MOUSE_ENABLED = "fly_mouse_enabled";
     private static final String AUTO_SWITCH_SOURCE = "auto_switch_source";
     private static final String AUTO_UPDATE_CHANNEL_LIST = "auto_update_channel_list";
     private static final String LIVE_DELAY_MODE = "live_delay_mode";
@@ -171,6 +167,9 @@ public final class MainActivity extends Activity {
     private static final long PLAYBACK_RECOVERY_HEALTHY_RESET_MS = 30000L;
     private static final int PLAYBACK_RECOVERY_MAX_ATTEMPTS = 5;
     private static final long CUSTOM_SOURCE_TIMEOUT_MS = 5000L;
+    // 内置源每频道最多 4 条线路（实测 66 频道平均 1.48）。上限覆盖当前全部线路，
+    // 同时防止线路数异常增多时逐条等静默超时造成长时间黑屏。
+    private static final int AUTO_SWITCH_MAX_ATTEMPTS = 4;
     private static final long NUMERIC_CHANNEL_TIMEOUT_MS = 1200L;
     private static final int LOCAL_PLAYLIST_PERMISSION_REQUEST = 4201;
     private static final long VIDEO_RENDER_START_TIMEOUT_MS = 10000L;
@@ -277,9 +276,6 @@ public final class MainActivity extends Activity {
     private View channelSwitchBlackout;
     private ImageView channelSwipeSnapshot;
     private WebSourceView webSourceView;
-    private FlyMouseCursorView flyMouseCursor;
-    private boolean flyMouseButtonDown;
-    private long flyMouseButtonDownTime;
     private SurfaceHolder videoSurfaceHolder;
     private HlsProxyServer proxy;
     private boolean proxyStatefulCmgSource;
@@ -297,8 +293,7 @@ public final class MainActivity extends Activity {
     private boolean activeEmbeddedCjsResolver;
     private String webStreamHeaders;
     private boolean playingDiscoveredWebStream;
-    private final LinkedHashMap<String, SniffedResource> sniffedResources =
-            new LinkedHashMap<String, SniffedResource>();
+
     private Channel pendingPlayerChannel;
     private String pendingPlayerStreamUrl;
     private boolean pendingForceSoftwareDecode;
@@ -356,7 +351,6 @@ public final class MainActivity extends Activity {
     private long lastPlaybackRecoveryAt;
     private String playbackRecoveryTarget = "";
     private AutoUpdater autoUpdater;
-    private SystemInfoProvider systemInfoProvider;
     private QrCodeView managementQr;
     private View managementPanel;
     private View backPrompt;
@@ -376,7 +370,6 @@ public final class MainActivity extends Activity {
     private volatile String resolutionMode;
     private volatile String webViewResolution;
     private volatile boolean webViewLoadImages;
-    private volatile boolean webViewAutoPlaySniffed;
     private volatile String webViewUserAgent;
     private volatile String clockLocation;
     private volatile boolean showDebugInfo;
@@ -384,7 +377,6 @@ public final class MainActivity extends Activity {
     private volatile boolean showDateTime;
     private volatile String dateTimeFormat;
     private volatile String epgUrl;
-    private volatile boolean flyMouseEnabled;
     private volatile boolean autoSwitchSource;
     private volatile boolean autoUpdateChannelList;
     private volatile String liveDelayMode;
@@ -432,23 +424,6 @@ public final class MainActivity extends Activity {
     private boolean mutedByCallMode;
     private ServiceConnection crashRecoveryConnection;
     private boolean crashRecoveryBound;
-
-    private static final class SniffedResource {
-        final int requestId;
-        final String url;
-        final String pageUrl;
-        final String userAgent;
-        final String cookies;
-
-        SniffedResource(int requestId, String url, String pageUrl,
-                String userAgent, String cookies) {
-            this.requestId = requestId;
-            this.url = url;
-            this.pageUrl = pageUrl;
-            this.userAgent = userAgent;
-            this.cookies = cookies;
-        }
-    }
 
     private static final class LastChannelSnapshot {
         final ChannelCatalog.Group group;
@@ -550,8 +525,6 @@ public final class MainActivity extends Activity {
         videoInfo = (TextView) findViewById(R.id.video_info);
         numericChannelOverlay = (TextView) findViewById(R.id.numeric_channel_overlay);
         webSourceView = (WebSourceView) findViewById(R.id.web_source);
-        systemInfoProvider = new SystemInfoProvider(this);
-        flyMouseCursor = (FlyMouseCursorView) findViewById(R.id.fly_mouse_cursor);
         managementUrl = (TextView) findViewById(R.id.management_url);
         managementQr = (QrCodeView) findViewById(R.id.management_qr);
         managementPanel = findViewById(R.id.management_panel);
@@ -604,8 +577,6 @@ public final class MainActivity extends Activity {
         });
         epgAdapter = new EpgListAdapter(this, uiScaleHelper);
         final SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
-        // Player selection was removed; discard values left by earlier test builds.
-        preferences.edit().remove("player_backend").apply();
         String detectedDefaultDecoder = defaultHardwareDecoder();
         if (MSTAR_AVC_DECODER.equals(detectedDefaultDecoder)
                 && !preferences.getBoolean(HARDDECODE_AB_MIGRATION, false)) {
@@ -634,15 +605,11 @@ public final class MainActivity extends Activity {
                 preferences.getString(UI_SCALE_MODE, UI_SCALE_AUTO));
         resolutionMode = sanitizeResolutionMode(
                 preferences.getString(RESOLUTION_MODE, RESOLUTION_MODE_HIGH));
-        String storedWebViewResolution = preferences.getString(
-                WEB_VIEW_RESOLUTION, WEB_VIEW_RESOLUTION_720P);
-        webViewResolution = sanitizeWebViewResolution(storedWebViewResolution);
-        if (!webViewResolution.equals(storedWebViewResolution)) {
-            preferences.edit().putString(WEB_VIEW_RESOLUTION, webViewResolution).apply();
-        }
+        // 网页渲染分辨率固定 1080P：75 寸电视场景下 720P 明显偏糊，不再提供设置项
+        webViewResolution = WEB_VIEW_RESOLUTION_1080P;
+        preferences.edit().putString(WEB_VIEW_RESOLUTION, webViewResolution).apply();
         webViewLoadImages = preferences.getBoolean(WEB_VIEW_LOAD_IMAGES, true);
-        webViewAutoPlaySniffed = preferences.getBoolean(
-                WEB_VIEW_AUTO_PLAY_SNIFFED, true);
+
         webViewUserAgent = sanitizeWebViewUserAgent(preferences.getString(
                 WEB_VIEW_USER_AGENT, WEB_VIEW_USER_AGENT_WINDOWS));
         webSourceView.applyConfiguration(webViewResolution, webViewLoadImages,
@@ -659,8 +626,7 @@ public final class MainActivity extends Activity {
         dateTimeFormat = sanitizeDateTimeFormat(preferences.getString(
                 DATE_TIME_FORMAT, DATE_TIME_DATE_FIRST));
         epgUrl = preferences.getString(EPG_URL, "").trim();
-        flyMouseEnabled = preferences.getBoolean(FLY_MOUSE_ENABLED, false);
-        autoSwitchSource = preferences.getBoolean(AUTO_SWITCH_SOURCE, false);
+        autoSwitchSource = preferences.getBoolean(AUTO_SWITCH_SOURCE, true);
         autoUpdateChannelList = preferences.getBoolean(AUTO_UPDATE_CHANNEL_LIST, false);
         liveDelayMode = sanitizeLiveDelayMode(
                 preferences.getString(LIVE_DELAY_MODE, LIVE_DELAY_STABLE));
@@ -698,7 +664,6 @@ public final class MainActivity extends Activity {
         channelSwitchBlackout = findViewById(R.id.channel_switch_blackout);
         channelSwipeSnapshot = (ImageView) findViewById(R.id.channel_swipe_snapshot);
         configureWebSourceView();
-        applyFlyMouseVisibility();
         applyDisplaySettings();
         View.OnClickListener openChannelsOnClick = new View.OnClickListener() {
             @Override
@@ -747,12 +712,11 @@ public final class MainActivity extends Activity {
         root.requestFocus();
         autoUpdater = new AutoUpdater(this);
         autoUpdater.checkForUpdates();
-        migrateFavoriteGroupIndex(preferences);
         migrateMergedCentralGroups(preferences);
         boolean hasLastChannel = preferences.contains(LAST_GROUP_INDEX)
                 && preferences.contains(LAST_CHANNEL_INDEX);
         if (startupSnapshot != null) {
-            currentGroupIndex = findGroupByTitle(
+            currentGroupIndex = ChannelKeys.findGroupByTitle(
                     ChannelCatalog.GROUPS, startupSnapshot.group.title);
             if (currentGroupIndex < 0 || currentGroup().channels.length == 0) {
                 currentGroupIndex = ChannelCatalog.firstPlayableGroupIndex();
@@ -891,7 +855,6 @@ public final class MainActivity extends Activity {
             @Override
             public void onPageStarted(int requestId, String url) {
                 if (requestId == playRequestId) {
-                    clearSniffedResources();
                     clearWebCloseConfirmation();
                     updateLoadingStatus("正在加载网页直播");
                 }
@@ -907,10 +870,7 @@ public final class MainActivity extends Activity {
                 hideLoading();
                 revealIncomingChannel(requestId);
                 persistPlayingChannel(channel, requestId);
-                showChannelBar(channel.name, flyMouseEnabled
-                        ? "网页已打开 · 手机飞鼠可操作"
-                        : "网页已打开 · 可在管理页开启飞鼠");
-                ensureFlyMouseOnTop();
+                showChannelBar(channel.name, "网页已打开");
             }
 
             @Override
@@ -929,77 +889,32 @@ public final class MainActivity extends Activity {
                 if (requestId != playRequestId || !webSourceView.isPageVisible()) {
                     return;
                 }
-                Channel channel = currentChannel();
-                Log.i(TAG, "Web source stream discovered channel=" + channel.name
-                        + " url=" + streamUrl);
-                SniffedResource resource = new SniffedResource(requestId, streamUrl,
-                        pageUrl, userAgent, cookies);
-                int resourceCount = rememberSniffedResource(resource);
-                if (webViewAutoPlaySniffed) {
-                    startSniffedResource(resource);
-                } else {
-                    showChannelBar(channel.name, "已发现 " + resourceCount
-                            + " 个可播放资源 · 可在手机飞鼠中选择");
-                }
+                Log.i(TAG, "Web source stream discovered channel="
+                        + currentChannel().name + " url=" + streamUrl);
+                startDiscoveredWebStream(requestId, streamUrl, pageUrl, userAgent, cookies);
             }
         });
     }
 
-    private int rememberSniffedResource(SniffedResource resource) {
-        synchronized (sniffedResources) {
-            sniffedResources.put(resource.url, resource);
-            while (sniffedResources.size() > 30) {
-                String oldest = sniffedResources.keySet().iterator().next();
-                sniffedResources.remove(oldest);
-            }
-            return sniffedResources.size();
-        }
-    }
-
-    private void clearSniffedResources() {
-        synchronized (sniffedResources) {
-            sniffedResources.clear();
-        }
-    }
-
-    private SniffedResource findSniffedResource(String url) {
-        synchronized (sniffedResources) {
-            return sniffedResources.get(url);
-        }
-    }
-
-    private JSONArray sniffedResourcesJson() throws JSONException {
-        JSONArray result = new JSONArray();
-        synchronized (sniffedResources) {
-            for (SniffedResource resource : sniffedResources.values()) {
-                result.put(new JSONObject()
-                        .put("url", resource.url)
-                        .put("pageUrl", resource.pageUrl == null ? "" : resource.pageUrl));
-            }
-        }
-        return result;
-    }
-
-    private void startSniffedResource(SniffedResource resource) {
-        if (resource == null || resource.requestId != playRequestId
-                || webSourceView == null || !webSourceView.hasRetainedPage()) {
-            Toast.makeText(this, "该嗅探资源已失效，请重新打开网页",
+    private void startDiscoveredWebStream(int requestId, String url, String pageUrl,
+            String userAgent, String cookies) {
+        if (requestId != playRequestId || webSourceView == null
+                || !webSourceView.hasRetainedPage()) {
+            Toast.makeText(this, "网页直播已失效，请重新打开网页",
                     Toast.LENGTH_SHORT).show();
             return;
         }
         Channel channel = currentChannel();
-        webStreamHeaders = buildWebStreamHeaders(resource.pageUrl,
-                resource.userAgent, resource.cookies);
+        webStreamHeaders = buildWebStreamHeaders(pageUrl, userAgent, cookies);
         if (proxy != null) {
-            proxy.setWebRequestHeaders(resource.pageUrl,
-                    resource.userAgent, resource.cookies);
+            proxy.setWebRequestHeaders(pageUrl, userAgent, cookies);
         }
         playingDiscoveredWebStream = true;
         webSourceView.hideForStreamPlayback();
         videoView.setVisibility(View.VISIBLE);
-        showLoading(channel.name, "正在打开所选嗅探资源");
+        showLoading(channel.name, "正在打开网页直播");
         showChannelBar(channel.name, "已从网页打开视频 · 按返回键回网页");
-        startResolvedPlayer(channel, resource.url);
+        startResolvedPlayer(channel, url);
     }
 
     private void openWebSource(Channel channel, String configuredUrl, int requestId) {
@@ -1011,16 +926,13 @@ public final class MainActivity extends Activity {
             return;
         }
         releasePlayer();
-        clearSniffedResources();
         videoView.setVisibility(View.INVISIBLE);
         showLoading(channel.name, "正在打开网页直播");
         webSourceView.open(requestId, pageUrl);
-        ensureFlyMouseOnTop();
     }
 
     private void closeWebSource() {
         playingDiscoveredWebStream = false;
-        clearSniffedResources();
         if (webSourceView != null) {
             webSourceView.closePage();
         }
@@ -1030,28 +942,13 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static boolean isWebViewSource(String url) {
-        return url != null && (url.startsWith("webview://http://")
-                || url.startsWith("webview://https://"));
-    }
-
     private static String buildWebStreamHeaders(String pageUrl, String userAgent,
             String cookies) {
         StringBuilder headers = new StringBuilder();
-        appendWebHeader(headers, "Referer", pageUrl);
-        appendWebHeader(headers, "User-Agent", userAgent);
-        appendWebHeader(headers, "Cookie", cookies);
+        SourceTags.appendWebHeader(headers, "Referer", pageUrl);
+        SourceTags.appendWebHeader(headers, "User-Agent", userAgent);
+        SourceTags.appendWebHeader(headers, "Cookie", cookies);
         return headers.toString();
-    }
-
-    private static void appendWebHeader(StringBuilder headers, String name, String value) {
-        if (value == null || value.length() == 0) {
-            return;
-        }
-        String safeValue = value.replace('\r', ' ').replace('\n', ' ').trim();
-        if (safeValue.length() > 0) {
-            headers.append(name).append(": ").append(safeValue).append("\r\n");
-        }
     }
 
     private void confirmBackPrompt() {
@@ -1075,7 +972,6 @@ public final class MainActivity extends Activity {
         backPrompt.removeCallbacks(hideBackPrompt);
         backPrompt.setVisibility(View.VISIBLE);
         backPrompt.bringToFront();
-        ensureFlyMouseOnTop();
         backPromptOk.requestFocus();
         backPrompt.postDelayed(hideBackPrompt, BACK_PROMPT_TIMEOUT_MS);
     }
@@ -1119,7 +1015,6 @@ public final class MainActivity extends Activity {
         refreshManagementAddress();
         managementPanel.setVisibility(View.VISIBLE);
         managementPanel.bringToFront();
-        ensureFlyMouseOnTop();
         root.requestFocus();
     }
 
@@ -1146,7 +1041,7 @@ public final class MainActivity extends Activity {
             InputStream input = getResources().openRawResource(R.raw.control);
             byte[] html;
             try {
-                html = readStream(input);
+                html = PlaybackSupport.readStream(input);
             } finally {
                 input.close();
             }
@@ -1159,11 +1054,6 @@ public final class MainActivity extends Activity {
                 @Override
                 public String control(JSONObject request) throws Exception {
                     return handleWebControl(request);
-                }
-
-                @Override
-                public String pointer(JSONObject request) throws Exception {
-                    return handleWebPointer(request);
                 }
 
                 @Override
@@ -1225,15 +1115,6 @@ public final class MainActivity extends Activity {
                     }
                 }
 
-                @Override
-                public LocalControlServer.Resource recording(String token) throws Exception {
-                    return handleRecordingResource(token);
-                }
-
-                @Override
-                public LocalControlServer.Resource page(String path) throws Exception {
-                    return handleControlPage(path);
-                }
             });
             controlServer.start();
             refreshManagementAddress();
@@ -1243,67 +1124,6 @@ public final class MainActivity extends Activity {
                     + LocalControlServer.PREFERRED_PORT + "-"
                     + LocalControlServer.MAX_PORT + " 均不可用");
             managementQr.setText(null);
-        }
-    }
-
-    private static byte[] readStream(InputStream input) throws IOException {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        byte[] buffer = new byte[8192];
-        int count;
-        while ((count = input.read(buffer)) != -1) {
-            output.write(buffer, 0, count);
-        }
-        return output.toByteArray();
-    }
-
-    private LocalControlServer.Resource handleControlPage(String path) throws IOException {
-        String contentType = path.endsWith(".js")
-                ? "application/javascript; charset=utf-8" : "text/html; charset=utf-8";
-        if (BuildConfig.EMBED_CONTROL_PAGES) {
-            InputStream input = getAssets().open(path);
-            try {
-                return new LocalControlServer.Resource(contentType, readStream(input));
-            } finally {
-                input.close();
-            }
-        }
-        String sourceUrl;
-        if ("flymouse.html".equals(path)) {
-            sourceUrl = BuildConfig.FLY_MOUSE_PAGE_SOURCE_URL;
-        } else if ("video-recorder.html".equals(path)) {
-            sourceUrl = BuildConfig.VIDEO_RECORDER_PAGE_SOURCE_URL;
-        } else if ("mp4-finalizer.js".equals(path)) {
-            sourceUrl = BuildConfig.MP4_FINALIZER_SOURCE_URL;
-        } else {
-            throw new IOException("网页资源不存在");
-        }
-        HttpURLConnection connection = NetworkClient.open(new URL(
-                GithubProxy.apply(sourceUrl)));
-        connection.setConnectTimeout(12000);
-        connection.setReadTimeout(18000);
-        connection.setInstanceFollowRedirects(true);
-        connection.setRequestProperty("User-Agent", "nTv/" + BuildConfig.VERSION_NAME);
-        try {
-            int status = connection.getResponseCode();
-            if (status < 200 || status >= 300) {
-                throw new IOException("在线网页下载失败：HTTP " + status);
-            }
-            int length = connection.getContentLength();
-            if (length > 2 * 1024 * 1024) {
-                throw new IOException("在线网页文件过大");
-            }
-            InputStream input = connection.getInputStream();
-            try {
-                byte[] body = readStream(input);
-                if (body.length > 2 * 1024 * 1024) {
-                    throw new IOException("在线网页文件过大");
-                }
-                return new LocalControlServer.Resource(contentType, body);
-            } finally {
-                input.close();
-            }
-        } finally {
-            connection.disconnect();
         }
     }
 
@@ -1349,34 +1169,21 @@ public final class MainActivity extends Activity {
                     .put("densityDpi", displayMetrics.densityDpi)
                     .put("diagonalInches", detectedDisplayInches > 0f
                             ? Math.round(detectedDisplayInches * 10f) / 10.0d : 0d));
-            root.put("system", systemInfoProvider == null ? new JSONObject()
-                    : systemInfoProvider.snapshot());
             root.put("cjsPlugin", CjsPluginRuntime.statusJson());
             JSONObject current = new JSONObject();
             current.put("groupIndex", groupIndex);
             current.put("channelIndex", channelIndex);
             current.put("group", group.title);
             current.put("name", channel.name);
-            current.put("sourceIndex", catalogSource(group, channel)
+            current.put("sourceIndex", ChannelKeys.catalogSource(group, channel)
                     == ChannelCatalog.SOURCE_CUSTOM
                     ? currentSourceIndex : 0);
             current.put("sourceCount", Math.max(1, channel.sourceCount()));
             root.put("current", current);
-            boolean directRecording = activePlayerStreamUrl != null
-                    && isDirectThirdPartyRecordingSource(activePlayerStreamUrl);
-            boolean recordingAvailable = activePlayerStreamUrl != null
-                    && activePlayerStreamUrl.length() > 0
-                    && (directRecording || proxy != null);
-            root.put("recording", new JSONObject()
-                    .put("available", recordingAvailable)
-                    .put("name", channel.name)
-                    .put("group", group.title)
+            // 实测播放分辨率：画质是核心体验指标，保留可观测性
+            root.put("video", new JSONObject()
                     .put("width", Math.max(0, videoWidth))
-                    .put("height", Math.max(0, videoHeight))
-                    .put("sourceMode", directRecording ? "direct" : "proxy")
-                    .put("sourceUrl", directRecording ? activePlayerStreamUrl : "")
-                    .put("playlistPath", "/api/recording/playlist"));
-            root.put("sniffedResources", sniffedResourcesJson());
+                    .put("height", Math.max(0, videoHeight)));
             JSONArray jsonGroups = new JSONArray();
             for (int groupPosition = 0; groupPosition < groups.length; groupPosition++) {
                 JSONObject jsonGroup = new JSONObject();
@@ -1405,10 +1212,9 @@ public final class MainActivity extends Activity {
                     .put("uiScaleFactor", Math.round(effectiveUiScale * 100f) / 100.0d)
                     .put("resolutionMode", resolutionMode)
                     .put("siteQualities", CjsPluginRuntime.qualityOptions(
-                            cjsComponentForChannel(channel, catalogSource(group, channel))))
+                            cjsComponentForChannel(channel, ChannelKeys.catalogSource(group, channel))))
                     .put("webViewResolution", webViewResolution)
                     .put("webViewLoadImages", webViewLoadImages)
-                    .put("webViewAutoPlaySniffed", webViewAutoPlaySniffed)
                     .put("webViewUserAgent", webViewUserAgent)
                     .put("webViewCacheBytes", webSourceView == null
                             ? 0L : webSourceView.browserCacheSizeBytes())
@@ -1418,7 +1224,6 @@ public final class MainActivity extends Activity {
                     .put("showDate", showDateTime)
                     .put("showDateTime", showDateTime)
                     .put("dateTimeFormat", dateTimeFormat)
-                    .put("flyMouseEnabled", flyMouseEnabled)
                     .put("autoSwitchSource", autoSwitchSource)
                     .put("autoUpdateChannelList", autoUpdateChannelList)
                     .put("liveDelayMode", liveDelayMode)
@@ -1442,12 +1247,8 @@ public final class MainActivity extends Activity {
         final String action = request.optString("action", "");
         final int requestedGroup = request.optInt("group", -1);
         final int requestedChannel = request.optInt("channel", -1);
-        final String requestedUrl = request.optString("url", "");
-        final SniffedResource requestedResource = "playSniffed".equals(action)
-                ? findSniffedResource(requestedUrl) : null;
         if (!"next".equals(action) && !"previous".equals(action)
-                && !"toggle".equals(action) && !"play".equals(action)
-                && !"playSniffed".equals(action)) {
+                && !"toggle".equals(action) && !"play".equals(action)) {
             throw new JSONException("未知的控制指令");
         }
         if ("play".equals(action)) {
@@ -1458,9 +1259,7 @@ public final class MainActivity extends Activity {
                 throw new JSONException("频道不存在");
             }
         }
-        if ("playSniffed".equals(action) && requestedResource == null) {
-            throw new JSONException("嗅探资源已失效，请刷新资源列表");
-        }
+
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -1470,8 +1269,6 @@ public final class MainActivity extends Activity {
                     switchRelative(-1);
                 } else if ("toggle".equals(action)) {
                     togglePlayback();
-                } else if ("playSniffed".equals(action)) {
-                    startSniffedResource(requestedResource);
                 } else {
                     ChannelCatalog.Group[] groups = ChannelCatalog.GROUPS;
                     if (requestedGroup < 0 || requestedGroup >= groups.length
@@ -1487,233 +1284,6 @@ public final class MainActivity extends Activity {
             }
         });
         return new JSONObject().put("ok", true).toString();
-    }
-
-    private String handleWebPointer(JSONObject request) throws JSONException {
-        if (!flyMouseEnabled) {
-            throw new JSONException("请先在操作与启动中开启手机飞鼠");
-        }
-        final String action = request.optString("action", "move");
-        if (!"move".equals(action) && !"click".equals(action)
-                && !"down".equals(action) && !"up".equals(action)
-                && !"cancel".equals(action)
-                && !"scroll".equals(action) && !"back".equals(action)
-                && !"reset".equals(action) && !"key".equals(action)
-                && !"text".equals(action) && !"menu".equals(action)) {
-            throw new JSONException("未知的飞鼠指令");
-        }
-        final float dx = clampPointerDelta((float) request.optDouble("dx", 0d));
-        final float dy = clampPointerDelta((float) request.optDouble("dy", 0d));
-        final int scrollY = (int) clampPointerDelta((float) request.optDouble("scrollY", 0d));
-        final String keyName = request.optString("key", "");
-        final int keyCode = remoteKeyCode(keyName);
-        final int metaState = (request.optBoolean("shift", false) ? KeyEvent.META_SHIFT_ON : 0)
-                | (request.optBoolean("ctrl", false) ? KeyEvent.META_CTRL_ON : 0)
-                | (request.optBoolean("alt", false) ? KeyEvent.META_ALT_ON : 0);
-        final String text = request.optString("text", "");
-        if ("key".equals(action) && keyCode == KeyEvent.KEYCODE_UNKNOWN) {
-            throw new JSONException("不支持的按键");
-        }
-        if ("text".equals(action) && (text.length() == 0 || text.length() > 1000)) {
-            throw new JSONException("输入文字不能为空且不能超过 1000 个字符");
-        }
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (!flyMouseEnabled) {
-                    return;
-                }
-                if ("move".equals(action)) {
-                    flyMouseCursor.moveBy(dx, dy);
-                    dispatchFlyMouseHeldMove();
-                    ensureFlyMouseOnTop();
-                } else if ("click".equals(action)) {
-                    dispatchFlyMouseClick();
-                } else if ("down".equals(action)) {
-                    dispatchFlyMouseButtonDown();
-                } else if ("up".equals(action)) {
-                    dispatchFlyMouseButtonUp(false);
-                } else if ("cancel".equals(action)) {
-                    dispatchFlyMouseButtonUp(true);
-                } else if ("scroll".equals(action)) {
-                    dispatchFlyMouseButtonUp(true);
-                    handleRemoteScroll(scrollY);
-                } else if ("back".equals(action)) {
-                    dispatchFlyMouseButtonUp(true);
-                    onBackPressed();
-                } else if ("menu".equals(action)) {
-                    dispatchFlyMouseButtonUp(true);
-                    openManagement();
-                } else if ("key".equals(action)) {
-                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP
-                            || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                        adjustRemoteVolume(keyCode);
-                    } else if (webSourceView != null && webSourceView.isPageVisible()
-                            && keyCode != KeyEvent.KEYCODE_VOLUME_MUTE) {
-                        webSourceView.dispatchRemoteKey(keyCode, metaState);
-                    } else {
-                        long now = SystemClock.uptimeMillis();
-                        dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN,
-                                keyCode, 0, metaState));
-                        dispatchKeyEvent(new KeyEvent(now, now + 24L, KeyEvent.ACTION_UP,
-                                keyCode, 0, metaState));
-                    }
-                } else if ("text".equals(action)) {
-                    if (webSourceView != null) {
-                        webSourceView.inputTextRemote(text);
-                    }
-                } else {
-                    dispatchFlyMouseButtonUp(true);
-                    flyMouseCursor.resetPosition();
-                    ensureFlyMouseOnTop();
-                }
-            }
-        });
-        return new JSONObject().put("ok", true).toString();
-    }
-
-    private void adjustRemoteVolume(int keyCode) {
-        AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        if (audioManager == null) {
-            return;
-        }
-        int direction = keyCode == KeyEvent.KEYCODE_VOLUME_UP
-                ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER;
-        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction,
-                AudioManager.FLAG_SHOW_UI | AudioManager.FLAG_PLAY_SOUND);
-    }
-
-    private static int remoteKeyCode(String name) {
-        if (name == null) {
-            return KeyEvent.KEYCODE_UNKNOWN;
-        }
-        String key = name.trim().toLowerCase(Locale.US);
-        if (key.length() == 1) {
-            char value = key.charAt(0);
-            if (value >= 'a' && value <= 'z') {
-                return KeyEvent.KEYCODE_A + value - 'a';
-            }
-            if (value >= '0' && value <= '9') {
-                return KeyEvent.KEYCODE_0 + value - '0';
-            }
-        }
-        if ("up".equals(key)) return KeyEvent.KEYCODE_DPAD_UP;
-        if ("down".equals(key)) return KeyEvent.KEYCODE_DPAD_DOWN;
-        if ("left".equals(key)) return KeyEvent.KEYCODE_DPAD_LEFT;
-        if ("right".equals(key)) return KeyEvent.KEYCODE_DPAD_RIGHT;
-        if ("enter".equals(key) || "ok".equals(key)) return KeyEvent.KEYCODE_ENTER;
-        if ("tab".equals(key)) return KeyEvent.KEYCODE_TAB;
-        if ("space".equals(key)) return KeyEvent.KEYCODE_SPACE;
-        if ("backspace".equals(key)) return KeyEvent.KEYCODE_DEL;
-        if ("delete".equals(key)) return KeyEvent.KEYCODE_FORWARD_DEL;
-        if ("escape".equals(key) || "esc".equals(key)) return KeyEvent.KEYCODE_ESCAPE;
-        if ("home".equals(key)) return KeyEvent.KEYCODE_MOVE_HOME;
-        if ("end".equals(key)) return KeyEvent.KEYCODE_MOVE_END;
-        if ("pageup".equals(key)) return KeyEvent.KEYCODE_PAGE_UP;
-        if ("pagedown".equals(key)) return KeyEvent.KEYCODE_PAGE_DOWN;
-        if ("menu".equals(key)) return KeyEvent.KEYCODE_MENU;
-        if ("playpause".equals(key)) return KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE;
-        if ("volumeup".equals(key)) return KeyEvent.KEYCODE_VOLUME_UP;
-        if ("volumedown".equals(key)) return KeyEvent.KEYCODE_VOLUME_DOWN;
-        if ("mute".equals(key)) return KeyEvent.KEYCODE_VOLUME_MUTE;
-        if ("comma".equals(key)) return KeyEvent.KEYCODE_COMMA;
-        if ("period".equals(key)) return KeyEvent.KEYCODE_PERIOD;
-        if ("slash".equals(key)) return KeyEvent.KEYCODE_SLASH;
-        if ("minus".equals(key)) return KeyEvent.KEYCODE_MINUS;
-        if ("equals".equals(key)) return KeyEvent.KEYCODE_EQUALS;
-        if ("semicolon".equals(key)) return KeyEvent.KEYCODE_SEMICOLON;
-        if ("apostrophe".equals(key)) return KeyEvent.KEYCODE_APOSTROPHE;
-        if ("leftbracket".equals(key)) return KeyEvent.KEYCODE_LEFT_BRACKET;
-        if ("rightbracket".equals(key)) return KeyEvent.KEYCODE_RIGHT_BRACKET;
-        if ("backslash".equals(key)) return KeyEvent.KEYCODE_BACKSLASH;
-        if ("grave".equals(key)) return KeyEvent.KEYCODE_GRAVE;
-        return KeyEvent.KEYCODE_UNKNOWN;
-    }
-
-    private LocalControlServer.Resource handleRecordingResource(String token)
-            throws IOException {
-        HlsProxyServer activeProxy = proxy;
-        String activeUrl = activePlayerStreamUrl;
-        if (activeProxy == null || activeUrl == null || activeUrl.length() == 0) {
-            throw new IOException("当前频道还没有可录制的视频流");
-        }
-        HlsProxyServer.ProxyResponse response = activeProxy.fetchForRecording(
-                activeUrl, token, "/api/recording/resource/");
-        return new LocalControlServer.Resource(response.contentType, response.body);
-    }
-
-    private void handleRemoteScroll(int scrollY) {
-        if (webSourceView != null && webSourceView.isPageVisible()) {
-            webSourceView.scrollByRemote(scrollY);
-            return;
-        }
-        if (channelListPanel == null || channelListPanel.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        ListView target = epgList.hasFocus() ? epgList
-                : groupList.hasFocus() ? groupList : channelList;
-        channelListPanel.removeCallbacks(hideChannelList);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            target.scrollListBy(scrollY);
-        } else {
-            int step = scrollY == 0 ? 0 : scrollY > 0 ? 1 : -1;
-            int next = Math.max(0, Math.min(target.getCount() - 1,
-                    target.getFirstVisiblePosition() + step));
-            target.setSelection(next);
-        }
-        scheduleChannelListDismiss();
-    }
-
-    private static float clampPointerDelta(float value) {
-        return Math.max(-240f, Math.min(240f, value));
-    }
-
-    private void applyFlyMouseVisibility() {
-        if (flyMouseCursor == null) {
-            return;
-        }
-        if (!flyMouseEnabled) {
-            dispatchFlyMouseButtonUp(true);
-        }
-        flyMouseCursor.setVisibility(flyMouseEnabled ? View.VISIBLE : View.GONE);
-        if (flyMouseEnabled) {
-            flyMouseCursor.resetPosition();
-            ensureFlyMouseOnTop();
-        }
-    }
-
-    private void ensureFlyMouseOnTop() {
-        if (flyMouseEnabled && flyMouseCursor != null) {
-            flyMouseCursor.bringToFront();
-        }
-    }
-
-    private void dispatchFlyMouseClick() {
-        if (flyMouseCursor == null || flyMouseCursor.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        float x = flyMouseCursor.cursorX();
-        float y = flyMouseCursor.cursorY();
-        long now = SystemClock.uptimeMillis();
-        MotionEvent down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0);
-        MotionEvent up = MotionEvent.obtain(now, now + 40L, MotionEvent.ACTION_UP, x, y, 0);
-        down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        int cursorVisibility = flyMouseCursor.getVisibility();
-        try {
-            // The cursor is a full-screen overlay. Hide it only while hit-testing the
-            // synthetic tap so the real WebView/TV control underneath receives it.
-            flyMouseCursor.setVisibility(View.INVISIBLE);
-            root.dispatchTouchEvent(down);
-            root.dispatchTouchEvent(up);
-            flyMouseCursor.setVisibility(cursorVisibility);
-            flyMouseCursor.pulseClick();
-            ensureFlyMouseOnTop();
-        } finally {
-            flyMouseCursor.setVisibility(cursorVisibility);
-            down.recycle();
-            up.recycle();
-        }
     }
 
     private String handleWebSettings(JSONObject request) throws Exception {
@@ -1733,11 +1303,6 @@ public final class MainActivity extends Activity {
             restartPlayback |= !requestedDns.equals(NetworkClient.getDnsMode());
             NetworkClient.setDnsMode(requestedDns);
         }
-        if (request.has("reverseKeys")) {
-            reverseUpDown = request.optBoolean("reverseKeys", false);
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(REVERSE_UP_DOWN, reverseUpDown).apply();
-        }
         if (request.has("autoStart")) {
             autoStart = request.optBoolean("autoStart", false);
             getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
@@ -1756,50 +1321,6 @@ public final class MainActivity extends Activity {
             getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
                     .putString(DECODE_MODE, decodeMode).apply();
             restartPlayback |= changed;
-        }
-        if (request.has("hardwareDecoder")) {
-            String rawDecoder = request.optString(
-                    "hardwareDecoder", HARDWARE_DECODER_AUTO);
-            String requestedDecoder = sanitizeHardwareDecoder(rawDecoder);
-            if (!requestedDecoder.equals(rawDecoder)) {
-                throw new JSONException("所选硬解解码器不可用");
-            }
-            restartPlayback |= !requestedDecoder.equals(hardwareDecoder);
-            hardwareDecoder = requestedDecoder;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(HARDWARE_DECODER, hardwareDecoder).apply();
-        }
-        if (request.has("surfaceMode")) {
-            String rawSurfaceMode = request.optString(
-                    "surfaceMode", SURFACE_MODE_NORMAL);
-            String requestedSurfaceMode = sanitizeSurfaceMode(rawSurfaceMode);
-            if (!requestedSurfaceMode.equals(rawSurfaceMode)) {
-                throw new JSONException("不支持的 Surface 模式");
-            }
-            recreateSurface |= !requestedSurfaceMode.equals(surfaceMode);
-            surfaceMode = requestedSurfaceMode;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(SURFACE_MODE, surfaceMode).apply();
-        }
-        if (request.has("rtspTransport")) {
-            String rawTransport = request.optString(
-                    "rtspTransport", RTSP_TRANSPORT_TCP);
-            String requestedTransport = sanitizeRtspTransport(rawTransport);
-            if (!requestedTransport.equals(rawTransport)) {
-                throw new JSONException("不支持的 RTSP 传输协议");
-            }
-            restartPlayback |= !requestedTransport.equals(rtspTransport);
-            rtspTransport = requestedTransport;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(RTSP_TRANSPORT, rtspTransport).apply();
-        }
-        if (request.has("h264SpsCompatibility")) {
-            boolean requestedCompatibility = request.optBoolean(
-                    "h264SpsCompatibility", true);
-            restartPlayback |= requestedCompatibility != h264SpsCompatibility;
-            h264SpsCompatibility = requestedCompatibility;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(H264_SPS_COMPATIBILITY, h264SpsCompatibility).apply();
         }
         if (request.has("videoScaleMode")) {
             String rawMode = request.optString("videoScaleMode", VIDEO_SCALE_FIT);
@@ -1844,25 +1365,6 @@ public final class MainActivity extends Activity {
             getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
                     .putString(RESOLUTION_MODE, resolutionMode).apply();
         }
-        if (request.has("clockLocation")) {
-            String rawLocation = request.optString(
-                    "clockLocation", CLOCK_LOCATION_RIGHT);
-            final String requestedLocation = sanitizeClockLocation(rawLocation);
-            if (!requestedLocation.equals(rawLocation)
-                    && !CLOCK_LOCATION_VIDEO.equals(rawLocation)
-                    && !CLOCK_LOCATION_CHANNEL_LIST.equals(rawLocation)) {
-                throw new JSONException("不支持的时间显示位置");
-            }
-            clockLocation = requestedLocation;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(CLOCK_LOCATION, clockLocation).apply();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    applyClockLocation();
-                }
-            });
-        }
         if (request.has("showDebugInfo")) {
             showDebugInfo = request.optBoolean("showDebugInfo", false);
             getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
@@ -1898,43 +1400,6 @@ public final class MainActivity extends Activity {
                 }
             });
         }
-        if (request.has("webViewResolution")) {
-            String rawMode = request.optString(
-                    "webViewResolution", WEB_VIEW_RESOLUTION_720P);
-            String requestedMode = sanitizeWebViewResolution(rawMode);
-            if (!requestedMode.equals(rawMode)) {
-                throw new JSONException("不支持的网页分辨率");
-            }
-            webViewResolution = requestedMode;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(WEB_VIEW_RESOLUTION, webViewResolution).apply();
-            applyWebViewSettings = true;
-        }
-        if (request.has("webViewLoadImages")) {
-            webViewLoadImages = request.optBoolean("webViewLoadImages", true);
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(WEB_VIEW_LOAD_IMAGES, webViewLoadImages).apply();
-            applyWebViewSettings = true;
-        }
-        if (request.has("webViewAutoPlaySniffed")) {
-            webViewAutoPlaySniffed = request.optBoolean(
-                    "webViewAutoPlaySniffed", true);
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(WEB_VIEW_AUTO_PLAY_SNIFFED,
-                            webViewAutoPlaySniffed).apply();
-        }
-        if (request.has("webViewUserAgent")) {
-            String rawUserAgent = request.optString(
-                    "webViewUserAgent", WEB_VIEW_USER_AGENT_WINDOWS);
-            String requestedUserAgent = sanitizeWebViewUserAgent(rawUserAgent);
-            if (!requestedUserAgent.equals(rawUserAgent)) {
-                throw new JSONException("不支持的浏览器标识");
-            }
-            webViewUserAgent = requestedUserAgent;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(WEB_VIEW_USER_AGENT, webViewUserAgent).apply();
-            applyWebViewSettings = true;
-        }
         if (applyWebViewSettings) {
             final String requestedWebViewResolution = webViewResolution;
             final boolean requestedWebViewLoadImages = webViewLoadImages;
@@ -1946,22 +1411,6 @@ public final class MainActivity extends Activity {
                         webSourceView.applyConfiguration(requestedWebViewResolution,
                                 requestedWebViewLoadImages, requestedWebViewUserAgent);
                     }
-                }
-            });
-        }
-        if (request.has("dateTimeFormat")) {
-            String rawFormat = request.optString("dateTimeFormat", DATE_TIME_DATE_FIRST);
-            String requestedFormat = sanitizeDateTimeFormat(rawFormat);
-            if (!requestedFormat.equals(rawFormat)) {
-                throw new JSONException("不支持的日期时间排序");
-            }
-            dateTimeFormat = requestedFormat;
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putString(DATE_TIME_FORMAT, dateTimeFormat).apply();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    applyClockLocation();
                 }
             });
         }
@@ -1983,28 +1432,11 @@ public final class MainActivity extends Activity {
             editor.apply();
             refreshEpg();
         }
-        if (request.has("flyMouseEnabled")) {
-            flyMouseEnabled = request.optBoolean("flyMouseEnabled", false);
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(FLY_MOUSE_ENABLED, flyMouseEnabled).apply();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    applyFlyMouseVisibility();
-                }
-            });
-        }
         if (request.has("autoSwitchSource")) {
             autoSwitchSource = request.optBoolean("autoSwitchSource", false);
             getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
                     .putBoolean(AUTO_SWITCH_SOURCE, autoSwitchSource).apply();
             Log.i(TAG, "Automatic source switching=" + autoSwitchSource);
-        }
-        if (request.has("autoUpdateChannelList")) {
-            autoUpdateChannelList = request.optBoolean("autoUpdateChannelList", false);
-            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
-                    .putBoolean(AUTO_UPDATE_CHANNEL_LIST, autoUpdateChannelList).apply();
-            Log.i(TAG, "Automatic channel list update=" + autoUpdateChannelList);
         }
         if (request.has("liveDelayMode")) {
             String rawMode = request.optString("liveDelayMode", LIVE_DELAY_STABLE);
@@ -2177,20 +1609,20 @@ public final class MainActivity extends Activity {
                         int activeIndex = ChannelCatalog.wrapIndex(
                                 activeGroup.channels, currentChannelIndex);
                         activeGroupTitle = activeGroup.title;
-                        activeChannelKey = favoriteKey(
+                        activeChannelKey = ChannelKeys.favoriteKey(
                                 activeGroup, activeGroup.channels[activeIndex]);
-                        wasCustom = catalogSource(activeGroup,
+                        wasCustom = ChannelKeys.catalogSource(activeGroup,
                                 activeGroup.channels[activeIndex])
                                 == ChannelCatalog.SOURCE_CUSTOM;
                     }
                 }
                 ChannelCatalog.setCustomGroups(customGroups);
-                int restoredGroup = findGroupByTitle(
+                int restoredGroup = ChannelKeys.findGroupByTitle(
                         ChannelCatalog.GROUPS, activeGroupTitle);
                 if (restoredGroup >= 0) {
                     currentGroupIndex = restoredGroup;
                     ChannelCatalog.Group group = ChannelCatalog.GROUPS[restoredGroup];
-                    int restoredChannel = findChannelByKey(group, activeChannelKey);
+                    int restoredChannel = ChannelKeys.findChannelByKey(group, activeChannelKey);
                     currentChannelIndex = restoredChannel >= 0 ? restoredChannel
                             : ChannelCatalog.wrapIndex(group.channels, currentChannelIndex);
                 } else {
@@ -2215,7 +1647,7 @@ public final class MainActivity extends Activity {
                 }
                 boolean selectionChanged = !hasPlayableChannel
                         || activeChannelKey == null
-                        || !activeChannelKey.equals(favoriteKey(currentGroup(),
+                        || !activeChannelKey.equals(ChannelKeys.favoriteKey(currentGroup(),
                                 currentGroup().channels[ChannelCatalog.wrapIndex(
                                         currentGroup().channels, currentChannelIndex)]));
                 browsingGroupIndex = currentGroupIndex;
@@ -2324,32 +1756,8 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private static int findGroupByTitle(ChannelCatalog.Group[] groups, String title) {
-        if (title == null) {
-            return -1;
-        }
-        for (int index = 0; index < groups.length; index++) {
-            if (title.equals(groups[index].title)) {
-                return index;
-            }
-        }
-        return -1;
-    }
-
-    private static int findChannelByKey(ChannelCatalog.Group group, String key) {
-        if (key == null) {
-            return -1;
-        }
-        for (int index = 0; index < group.channels.length; index++) {
-            if (key.equals(favoriteKey(group, group.channels[index]))) {
-                return index;
-            }
-        }
-        return -1;
-    }
-
     private void selectFirstLaunchChannel() {
-        int groupIndex = findGroupByTitle(
+        int groupIndex = ChannelKeys.findGroupByTitle(
                 ChannelCatalog.GROUPS, FIRST_LAUNCH_GROUP_TITLE);
         if (groupIndex < 0 || ChannelCatalog.GROUPS[groupIndex].channels.length == 0) {
             groupIndex = ChannelCatalog.firstPlayableGroupIndex();
@@ -2392,12 +1800,12 @@ public final class MainActivity extends Activity {
             }
             Channel channel = new Channel(
                     value.optString("number", ""), name,
-                    emptyToNull(value.optString("streamId", "")),
+                    TextFormats.emptyToNull(value.optString("streamId", "")),
                     urls.toArray(new String[urls.size()]),
-                    emptyToNull(value.optString("yangshipinPid", "")),
-                    emptyToNull(value.optString("yangshipinStreamId", "")),
-                    emptyToNull(value.optString("yangshipinMaxDefinition", "")),
-                    emptyToNull(value.optString("epgId", "")));
+                    TextFormats.emptyToNull(value.optString("yangshipinPid", "")),
+                    TextFormats.emptyToNull(value.optString("yangshipinStreamId", "")),
+                    TextFormats.emptyToNull(value.optString("yangshipinMaxDefinition", "")),
+                    TextFormats.emptyToNull(value.optString("epgId", "")));
             int source = value.optInt("catalogSource", ChannelCatalog.SOURCE_CUSTOM);
             channel = channel.withCatalogSource(source);
             if (channel.sourceCount() == 0
@@ -2419,7 +1827,7 @@ public final class MainActivity extends Activity {
             return;
         }
         String groupTitle = group.title;
-        int source = catalogSource(group, channel);
+        int source = ChannelKeys.catalogSource(group, channel);
         if (group.source == ChannelCatalog.SOURCE_FAVORITES
                 && channel.favoriteKey != null) {
             int separator = channel.favoriteKey.indexOf('\u001f');
@@ -2459,11 +1867,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static String emptyToNull(String value) {
-        String normalized = value == null ? "" : value.trim();
-        return normalized.length() == 0 ? null : normalized;
-    }
-
     private void applySystemUiVisibility() {
         int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -2480,19 +1883,12 @@ public final class MainActivity extends Activity {
         return currentGroup().channels[currentChannelIndex];
     }
 
-    private static int catalogSource(ChannelCatalog.Group group, Channel channel) {
-        if (channel.catalogSource >= 0) {
-            return channel.catalogSource;
-        }
-        return group.source;
-    }
-
     private int currentCatalogSource() {
         ChannelCatalog.Group group = currentGroup();
         if (group.channels.length == 0) {
             return group.source;
         }
-        return catalogSource(group, group.channels[ChannelCatalog.wrapIndex(
+        return ChannelKeys.catalogSource(group, group.channels[ChannelCatalog.wrapIndex(
                 group.channels, currentChannelIndex)]);
     }
 
@@ -2515,7 +1911,7 @@ public final class MainActivity extends Activity {
         final ChannelCatalog.Group group = currentGroup();
         currentChannelIndex = ChannelCatalog.wrapIndex(group.channels, index);
         final Channel channel = group.channels[currentChannelIndex];
-        final int source = catalogSource(group, channel);
+        final int source = ChannelKeys.catalogSource(group, channel);
         activeCjsSource = null;
         try {
             if (source == ChannelCatalog.SOURCE_CUSTOM)
@@ -2607,31 +2003,22 @@ public final class MainActivity extends Activity {
         activeEmbeddedCctvResolver = false;
         activeEmbeddedYangshipinResolver = false;
         activeEmbeddedCjsResolver = false;
-        if (catalogSource(group, channel) != ChannelCatalog.SOURCE_CUSTOM) {
+        if (ChannelKeys.catalogSource(group, channel) != ChannelCatalog.SOURCE_CUSTOM) {
             return;
         }
         String configuredUrl = configuredPlaybackUrl(channel);
-        if (!isWebViewSource(configuredUrl)) {
-            activeEmbeddedCctvResolver = isCctvDirectStream(configuredUrl);
+        if (!SourceTags.isWebViewSource(configuredUrl)) {
+            activeEmbeddedCctvResolver = SourceTags.isCctvDirectStream(configuredUrl);
             return;
         }
-        activeEmbeddedYangshipinResolver = extractYangshipinPid(configuredUrl) != null;
-        String page = webViewPage(configuredUrl);
-        activeEmbeddedCctvResolver = extractCctvWebChannel(configuredUrl) != null;
+        activeEmbeddedYangshipinResolver = SourceTags.extractYangshipinPid(configuredUrl) != null;
+        String page = SourceTags.webViewPage(configuredUrl);
+        activeEmbeddedCctvResolver = SourceTags.extractCctvWebChannel(configuredUrl) != null;
         activeEmbeddedCjsResolver = !activeEmbeddedYangshipinResolver && !activeEmbeddedCctvResolver
                 && page != null && CjsPluginRuntime.supportsSite(page);
         activeEmbeddedCctvResolver = !activeEmbeddedYangshipinResolver
                 && !activeEmbeddedCjsResolver
-                && extractCctvWebChannel(configuredUrl) != null;
-    }
-
-    private static boolean isCctvDirectStream(String url) {
-        if (url == null) {
-            return false;
-        }
-        String normalized = url.toLowerCase(Locale.US);
-        return normalized.contains("cctvwbcd") && normalized.contains("/cdrmld")
-                && normalized.contains(".m3u8");
+                && SourceTags.extractCctvWebChannel(configuredUrl) != null;
     }
 
     private static boolean requiresCjsPlugin(Channel channel, int source) {
@@ -2645,8 +2032,8 @@ public final class MainActivity extends Activity {
         }
         for (int index = 0; index < channel.sourceCount(); index++) {
             String url = channel.sourceUrl(index);
-            if (isCctvDirectStream(url) || extractYangshipinPid(url) != null
-                    || isWebViewSource(url) || CjsSource.isSource(url)) {
+            if (SourceTags.isCctvDirectStream(url) || SourceTags.extractYangshipinPid(url) != null
+                    || SourceTags.isWebViewSource(url) || CjsSource.isSource(url)) {
                 return true;
             }
         }
@@ -2659,10 +2046,10 @@ public final class MainActivity extends Activity {
                 || source == ChannelCatalog.SOURCE_YSP_SATELLITE) return "yangshipin.cn";
         if (source != ChannelCatalog.SOURCE_CUSTOM || channel == null) return "";
         String url = configuredPlaybackUrl(channel);
-        if (extractYangshipinPid(url) != null) return "yangshipin.cn";
-        if (isCctvDirectStream(url) || extractCctvWebChannel(url) != null) return "tv.cctv.com";
-        if (isWebViewSource(url)) {
-            String page = webViewPage(url);
+        if (SourceTags.extractYangshipinPid(url) != null) return "yangshipin.cn";
+        if (SourceTags.isCctvDirectStream(url) || SourceTags.extractCctvWebChannel(url) != null) return "tv.cctv.com";
+        if (SourceTags.isWebViewSource(url)) {
+            String page = SourceTags.webViewPage(url);
             return page == null ? "" : CjsPluginRuntime.componentForUrl(page);
         }
         return "";
@@ -2798,11 +2185,16 @@ public final class MainActivity extends Activity {
                     Toast.LENGTH_LONG).show();
             return true;
         }
-        if (automatic && triedCustomSources >= count) {
-            abortChannelSwitchAnimation();
-            hideLoading();
-            showChannelBar(channel.name, "全部 " + count + " 条线路均不可用");
-            return true;
+        if (automatic) {
+            int attemptLimit = Math.min(count, AUTO_SWITCH_MAX_ATTEMPTS);
+            if (triedCustomSources >= attemptLimit) {
+                abortChannelSwitchAnimation();
+                hideLoading();
+                showChannelBar(channel.name, triedCustomSources >= count
+                        ? "全部 " + count + " 条线路均不可用"
+                        : "已尝试 " + attemptLimit + " 条线路，均无法播放");
+                return true;
+            }
         }
         if (!automatic) {
             clearNumericChannelInput();
@@ -2814,6 +2206,9 @@ public final class MainActivity extends Activity {
         }
         if (automatic) {
             triedCustomSources++;
+            Log.i(TAG, "Auto source switch channel=" + channel.name
+                    + " to=" + (currentSourceIndex + 1) + "/" + count
+                    + " attempt=" + triedCustomSources + " reason=" + reason);
         } else {
             triedCustomSources = 1;
         }
@@ -2821,54 +2216,6 @@ public final class MainActivity extends Activity {
         showChannelBar(channel.name, (automatic ? reason + "，自动切换至" : "已切换至")
                 + "线路 " + (currentSourceIndex + 1) + "/" + count);
         return true;
-    }
-
-    private void dispatchFlyMouseButtonDown() {
-        if (flyMouseButtonDown || flyMouseCursor == null
-                || flyMouseCursor.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        flyMouseButtonDown = true;
-        flyMouseButtonDownTime = SystemClock.uptimeMillis();
-        dispatchFlyMouseMotionEvent(MotionEvent.ACTION_DOWN, flyMouseButtonDownTime);
-    }
-
-    private void dispatchFlyMouseHeldMove() {
-        if (flyMouseButtonDown) {
-            dispatchFlyMouseMotionEvent(MotionEvent.ACTION_MOVE, SystemClock.uptimeMillis());
-        }
-    }
-
-    private void dispatchFlyMouseButtonUp(boolean cancelled) {
-        if (!flyMouseButtonDown) {
-            return;
-        }
-        dispatchFlyMouseMotionEvent(cancelled ? MotionEvent.ACTION_CANCEL : MotionEvent.ACTION_UP,
-                SystemClock.uptimeMillis());
-        flyMouseButtonDown = false;
-        flyMouseButtonDownTime = 0L;
-        if (!cancelled && flyMouseCursor != null) {
-            flyMouseCursor.pulseClick();
-        }
-    }
-
-    private void dispatchFlyMouseMotionEvent(int action, long eventTime) {
-        if (flyMouseCursor == null) {
-            return;
-        }
-        long downTime = flyMouseButtonDownTime > 0L ? flyMouseButtonDownTime : eventTime;
-        MotionEvent event = MotionEvent.obtain(downTime, eventTime, action,
-                flyMouseCursor.cursorX(), flyMouseCursor.cursorY(), 0);
-        event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        int cursorVisibility = flyMouseCursor.getVisibility();
-        try {
-            flyMouseCursor.setVisibility(View.INVISIBLE);
-            root.dispatchTouchEvent(event);
-        } finally {
-            flyMouseCursor.setVisibility(cursorVisibility);
-            event.recycle();
-            ensureFlyMouseOnTop();
-        }
     }
 
     private void scheduleCustomSourceTimeout(final Channel channel, final int requestId) {
@@ -2963,8 +2310,8 @@ public final class MainActivity extends Activity {
                     return;
                 }
                 if (cmgTag != null && cmgTag.length() > 0) {
-                    int initialUpdateTag = parseHexUpdateTag(cmgInitialUpdateTag);
-                    int updateTag = parseHexUpdateTag(cmgUpdateTag);
+                    int initialUpdateTag = TextFormats.parseHexUpdateTag(cmgInitialUpdateTag);
+                    int updateTag = TextFormats.parseHexUpdateTag(cmgUpdateTag);
                     HlsProxyServer.configureCmgContext(
                             cmgTag, cmgInitTimeMs, cmgUpdateBaseTimeMs);
                     HlsProxyServer.configureCmgUpdateTags(initialUpdateTag, updateTag);
@@ -3016,18 +2363,6 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private static int parseHexUpdateTag(String text) {
-        if (text == null || text.length() == 0) {
-            return 0;
-        }
-        try {
-            return (int) Long.parseLong(text, 16);
-        } catch (NumberFormatException error) {
-            Log.w(TAG, "Invalid CMG update tag: " + text);
-            return 0;
-        }
-    }
-
     private static CmgWarmupResult warmupCmgUpdateSession(int requestedCount, long initTimeMs,
             long baseTimeMs, String trace, String nativeTrace, int targetInitTag,
             int targetUpdateTag) {
@@ -3041,7 +2376,7 @@ public final class MainActivity extends Activity {
         }
         int clockOffsetMs = 0;
         if (initTimeMs > 0L) {
-            int matchedOffset = initializeCmgAtOfficialInitTag(initTimeMs, targetInitTag);
+            int matchedOffset = PlaybackSupport.initializeCmgAtOfficialInitTag(initTimeMs, targetInitTag);
             clockOffsetMs = matchedOffset;
             Log.i(TAG, "CMG native traced InitPlayer time=" + initTimeMs
                     + " offset=" + matchedOffset
@@ -3066,11 +2401,11 @@ public final class MainActivity extends Activity {
             int lastTag = 0;
             for (int index = 0; index < tracedCount; index++) {
                 String[] parts = entries[index].split(",", -1);
-                long deltaMs = parsePositiveLong(parts.length > 0 ? parts[0] : "");
+                long deltaMs = TextFormats.parsePositiveLong(parts.length > 0 ? parts[0] : "");
                 String officialTagText = parts.length > 1 ? parts[1] : "";
                 NativeCmgDecryptor.setClockForProbe(baseTimeMs + deltaMs + clockOffsetMs);
                 lastTag = NativeCmgDecryptor.updateSessionForProbe();
-                int officialTag = parseHexUpdateTag(officialTagText);
+                int officialTag = TextFormats.parseHexUpdateTag(officialTagText);
                 if (firstMismatch < 0 && officialTag != 0 && lastTag != officialTag) {
                     firstMismatch = index;
                     Log.i(TAG, "CMG traced warmup first tag mismatch index=" + index
@@ -3112,86 +2447,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static int initializeCmgAtOfficialInitTag(long initTimeMs, int targetInitTag) {
-        int bestOffset = 0;
-        int bestResult = 0;
-        int[] offsets = new int[121];
-        offsets[0] = 0;
-        int count = 1;
-        for (int offset = 1; offset <= 60; offset++) {
-            offsets[count++] = offset;
-            offsets[count++] = -offset;
-        }
-        for (int index = 0; index < count; index++) {
-            int offset = offsets[index];
-            NativeCmgDecryptor.resetRuntimeForProbe();
-            NativeCmgDecryptor.setClockForProbe(initTimeMs + offset);
-            if (!NativeCmgDecryptor.initializeRuntimeForProbe()) {
-                continue;
-            }
-            int result = NativeCmgDecryptor.getPlayerInitResultForProbe();
-            if (index == 0) {
-                bestResult = result;
-            }
-            if (targetInitTag != 0 && result == targetInitTag) {
-                Log.i(TAG, "CMG native InitPlayer matched official tag="
-                        + String.format(Locale.US, "%08x", targetInitTag)
-                        + " offsetMs=" + offset);
-                return offset;
-            }
-            bestOffset = offset;
-        }
-        NativeCmgDecryptor.resetRuntimeForProbe();
-        NativeCmgDecryptor.setClockForProbe(initTimeMs);
-        NativeCmgDecryptor.initializeRuntimeForProbe();
-        Log.w(TAG, "CMG native InitPlayer did not match official tag target="
-                + String.format(Locale.US, "%08x", targetInitTag)
-                + " first=" + String.format(Locale.US, "%08x", bestResult)
-                + " searchedOffsetMs=" + bestOffset);
-        return 0;
-    }
-
-    private static void waitForCmgUpdateTag(int currentTag, int targetTag) {
-        if (targetTag == 0 || currentTag == targetTag) {
-            return;
-        }
-        long deadline = android.os.SystemClock.elapsedRealtime() + 1500L;
-        int lastTag = currentTag;
-        int attempts = 0;
-        while (android.os.SystemClock.elapsedRealtime() < deadline) {
-            attempts++;
-            lastTag = NativeCmgDecryptor.updateSessionForProbe();
-            if (lastTag == targetTag) {
-                Log.i(TAG, "CMG native reached official updateTag="
-                        + String.format(Locale.US, "%08x", targetTag)
-                        + " attempts=" + attempts);
-                return;
-            }
-            try {
-                Thread.sleep(10L);
-            } catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        Log.w(TAG, "CMG native did not reach official updateTag target="
-                + String.format(Locale.US, "%08x", targetTag)
-                + " last=" + String.format(Locale.US, "%08x", lastTag)
-                + " attempts=" + attempts);
-    }
-
-    private static long parsePositiveLong(String text) {
-        if (text == null || text.length() == 0) {
-            return 0L;
-        }
-        try {
-            long value = Long.parseLong(text);
-            return Math.max(0L, value);
-        } catch (NumberFormatException error) {
-            return 0L;
-        }
-    }
-
     private void resolveFallbackUrl(final Channel channel, final int requestId) {
         final boolean directCustomSource = currentCatalogSource()
                 == ChannelCatalog.SOURCE_CUSTOM;
@@ -3206,19 +2461,19 @@ public final class MainActivity extends Activity {
         if (!Ku9ScriptResolver.isKu9Source(configuredUrl) && ku9ScriptResolver != null) {
             ku9ScriptResolver.cancel();
         }
-        String cjsSitePage = webViewPage(configuredUrl);
+        String cjsSitePage = SourceTags.webViewPage(configuredUrl);
         if (cjsSitePage != null && !CjsPluginRuntime.supportsSite(cjsSitePage)) {
             cjsSitePage = null;
         }
         if (cjsSitePage == null && cjsSiteResolver != null) {
             cjsSiteResolver.cancel();
         }
-        if (isWebViewSource(configuredUrl)) {
+        if (SourceTags.isWebViewSource(configuredUrl)) {
             if (cjsSitePage != null) {
                 resolveCjsSite(channel, cjsSitePage, requestId);
                 return;
             }
-            String yangshipinPid = extractYangshipinPid(configuredUrl);
+            String yangshipinPid = SourceTags.extractYangshipinPid(configuredUrl);
             if (yangshipinPid != null) {
                 Channel resolverChannel = ChannelCatalog.findYangshipinChannelByPid(
                         yangshipinPid);
@@ -3231,7 +2486,7 @@ public final class MainActivity extends Activity {
                 resolveYangshipinUrl(resolverChannel, channel, requestId);
                 return;
             }
-            Channel cctvChannel = extractCctvWebChannel(configuredUrl);
+            Channel cctvChannel = SourceTags.extractCctvWebChannel(configuredUrl);
             if (cctvChannel != null) {
                 resolveEmbeddedCctvUrl(channel, cctvChannel, requestId);
                 return;
@@ -3256,7 +2511,7 @@ public final class MainActivity extends Activity {
             public void run() {
                 String streamUrl = configuredUrl;
                 boolean directHttpMedia = directCustomSource
-                        && isDirectHttpMediaSource(streamUrl);
+                        && SourceTags.isDirectHttpMediaSource(streamUrl);
                 if (HttpStreamResolver.shouldResolve(streamUrl)) {
                     try {
                         HttpStreamResolver.Result result = HttpStreamResolver.resolve(streamUrl);
@@ -3393,60 +2648,6 @@ public final class MainActivity extends Activity {
         startPlayer(channel, streamUrl, false);
     }
 
-    private static String extractYangshipinPid(String configuredUrl) {
-        Uri pageUri = parseWebViewPageUri(configuredUrl);
-        if (pageUri == null || !hostMatches(pageUri.getHost(), "yangshipin.cn")) {
-            return null;
-        }
-        try {
-            String pid = pageUri.getQueryParameter("pid");
-            return pid == null || pid.trim().length() == 0 ? null : pid.trim();
-        } catch (UnsupportedOperationException error) {
-            return null;
-        }
-    }
-
-    private static Channel extractCctvWebChannel(String configuredUrl) {
-        Uri pageUri = parseWebViewPageUri(configuredUrl);
-        if (pageUri == null || !hostMatches(pageUri.getHost(), "cctv.com")) {
-            return null;
-        }
-        java.util.List<String> segments = pageUri.getPathSegments();
-        for (int index = 0; index + 1 < segments.size(); index++) {
-            if ("live".equalsIgnoreCase(segments.get(index))) {
-                return ChannelCatalog.findCctvChannelByWebSlug(segments.get(index + 1));
-            }
-        }
-        return null;
-    }
-
-    private static String webViewPage(String configuredUrl) {
-        Uri pageUri = parseWebViewPageUri(configuredUrl);
-        if (pageUri == null || pageUri.getHost() == null) {
-            return null;
-        }
-        return pageUri.toString();
-    }
-
-    private static Uri parseWebViewPageUri(String configuredUrl) {
-        if (!isWebViewSource(configuredUrl)) {
-            return null;
-        }
-        try {
-            return Uri.parse(configuredUrl.substring("webview://".length()));
-        } catch (RuntimeException error) {
-            return null;
-        }
-    }
-
-    private static boolean hostMatches(String host, String domain) {
-        if (host == null) {
-            return false;
-        }
-        String lower = host.toLowerCase(Locale.US);
-        return lower.equals(domain) || lower.endsWith("." + domain);
-    }
-
     private void startPlayer(final Channel channel, final String streamUrl,
             boolean forceSoftwareDecode) throws IOException {
         startIjkPlayer(channel, streamUrl, forceSoftwareDecode,
@@ -3522,7 +2723,7 @@ public final class MainActivity extends Activity {
         final boolean cctvSource = isActiveCctvWebSource();
         final boolean directThirdPartyHls = shouldPlayThirdPartyHlsDirectly(streamUrl);
         final boolean genericThirdPartyHls = customSource && !cctvSource
-                && isHttpHlsSource(streamUrl);
+                && SourceTags.isHttpHlsSource(streamUrl);
         nextPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames",
                 cctvSource ? cctvIjkMinFrames() : (genericThirdPartyHls ? 20 : 60));
         nextPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 0);
@@ -3544,7 +2745,7 @@ public final class MainActivity extends Activity {
             nextPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT,
                     "multiple_requests", 1);
         }
-        if (isRtspSource(streamUrl)) {
+        if (SourceTags.isRtspSource(streamUrl)) {
             // TCP is substantially more tolerant of congested Wi-Fi and is the default.
             // Keep UDP available for low-latency LAN cameras and multicast gateways.
             nextPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT,
@@ -3757,7 +2958,7 @@ public final class MainActivity extends Activity {
         // Native RTMP/RTSP sources can be handed to IJK directly. HLS keeps using the
         // lightweight generic proxy because the compact IJK profile has no crypto
         // protocol and encryption cannot be known until the playlist has been read.
-        boolean directDataSource = isNativeStreamingSource(streamUrl)
+        boolean directDataSource = SourceTags.isNativeStreamingSource(streamUrl)
                 || directThirdPartyHls || directHttpMedia;
         if (directThirdPartyHls) {
             Log.i(TAG, "Opening third-party HLS directly: " + streamUrl);
@@ -3776,57 +2977,7 @@ public final class MainActivity extends Activity {
         return false;
     }
 
-    private boolean isDirectThirdPartyRecordingSource(String streamUrl) {
-        return currentCatalogSource() == ChannelCatalog.SOURCE_CUSTOM
-                && !activeEmbeddedCctvResolver && !activeEmbeddedYangshipinResolver
-                && !activeEmbeddedCjsResolver
-                && webStreamHeaders == null && isHttpHlsSource(streamUrl)
-                && !HlsProxyServer.needsSpecialDecrypt(streamUrl);
-    }
-
-    private static boolean requiresParallelHlsPrefetch(String streamUrl) {
-        if (streamUrl == null) {
-            return false;
-        }
-        String value = streamUrl.toLowerCase(Locale.US);
-        // This IPTV server family publishes ~5 MB/5 s segments but throttles each
-        // connection. Two bounded Java downloads keep one upcoming segment ready.
-        return value.contains(":9901/tsfile/live/") || value.contains("key=txiptv");
-    }
-
-    private static boolean isHttpHlsSource(String sourceUrl) {
-        if (sourceUrl == null) {
-            return false;
-        }
-        String value = sourceUrl.trim().toLowerCase(Locale.US);
-        if (!value.startsWith("http://") && !value.startsWith("https://")) {
-            return false;
-        }
-        return value.contains(".m3u8") || value.contains("format=m3u8")
-                || value.contains("type=m3u8");
-    }
-
     /** Plain HTTP media is already supported natively by the compact IJK build. */
-    private static boolean isDirectHttpMediaSource(String sourceUrl) {
-        if (sourceUrl == null) {
-            return false;
-        }
-        String value = sourceUrl.trim().toLowerCase(Locale.US);
-        if (!value.startsWith("http://")) {
-            // This IJK profile intentionally relies on the Java proxy for HTTPS/TLS.
-            return false;
-        }
-        String path = Uri.parse(value).getPath();
-        if (path == null) {
-            return false;
-        }
-        return path.endsWith(".flv") || path.endsWith(".mp4")
-                || path.endsWith(".mkv") || path.endsWith(".webm")
-                || path.endsWith(".mov") || path.endsWith(".avi")
-                || path.endsWith(".ts") || path.endsWith(".aac")
-                || path.endsWith(".mp3");
-    }
-
     private boolean shouldUseSoftwareDecode() {
         if (DECODE_MODE_SOFTWARE.equals(decodeMode)) {
             return true;
@@ -3869,7 +3020,7 @@ public final class MainActivity extends Activity {
                     continue;
                 }
                 String name = codecInfo.getName();
-                if (name == null || isSoftwareCodecName(name)) {
+                if (name == null || PlaybackSupport.isSoftwareCodecName(name)) {
                     continue;
                 }
                 for (String type : codecInfo.getSupportedTypes()) {
@@ -3883,17 +3034,6 @@ public final class MainActivity extends Activity {
             Log.w(TAG, "Unable to enumerate AVC hardware decoders", error);
         }
         return decoders;
-    }
-
-    private static boolean isSoftwareCodecName(String codecName) {
-        String lower = codecName.toLowerCase(Locale.US);
-        return lower.startsWith("omx.google.")
-                || lower.startsWith("omx.pv.")
-                || lower.startsWith("omx.ffmpeg.")
-                || lower.startsWith("omx.avcodec.")
-                || lower.startsWith("c2.android.")
-                || lower.contains(".software.")
-                || lower.contains(".sw.");
     }
 
     private JSONArray availableHardwareDecodersJson() {
@@ -3919,10 +3059,10 @@ public final class MainActivity extends Activity {
     }
 
     private static String sanitizeUiScaleMode(String mode) {
-        if (UI_SCALE_STANDARD.equals(mode) || UI_SCALE_LARGE.equals(mode)
-                || UI_SCALE_EXTRA_LARGE.equals(mode)
+        // 旧的 standard / extra_large / extra_extra_large 一律归到「大字号」
+        if (UI_SCALE_LARGE.equals(mode) || UI_SCALE_EXTRA_LARGE.equals(mode)
                 || UI_SCALE_EXTRA_EXTRA_LARGE.equals(mode)) {
-            return mode;
+            return UI_SCALE_LARGE;
         }
         return UI_SCALE_AUTO;
     }
@@ -3937,24 +3077,6 @@ public final class MainActivity extends Activity {
     private static String sanitizeClockLocation(String location) {
         return CLOCK_LOCATION_LEFT.equals(location)
                 ? CLOCK_LOCATION_LEFT : CLOCK_LOCATION_RIGHT;
-    }
-
-    private static boolean isRtmpSource(String sourceUrl) {
-        if (sourceUrl == null) {
-            return false;
-        }
-        String value = sourceUrl.trim().toLowerCase(Locale.US);
-        return value.startsWith("rtmp://") || value.startsWith("rtmpt://")
-                || value.startsWith("rtmps://");
-    }
-
-    private static boolean isRtspSource(String sourceUrl) {
-        return sourceUrl != null
-                && sourceUrl.trim().toLowerCase(Locale.US).startsWith("rtsp://");
-    }
-
-    private static boolean isNativeStreamingSource(String sourceUrl) {
-        return isRtmpSource(sourceUrl) || isRtspSource(sourceUrl);
     }
 
     private static String sanitizeRtspTransport(String transport) {
@@ -4107,7 +3229,7 @@ public final class MainActivity extends Activity {
         }
         float diagonal = detectedDisplayInches;
         if (diagonal >= 32f && diagonal <= 100f) {
-            return roundUiScale(Math.max(0.95f, Math.min(1.30f, 65f / diagonal)));
+            return UiMetrics.roundUiScale(Math.max(0.95f, Math.min(1.30f, 65f / diagonal)));
         }
         float density = Math.max(0.1f, metrics.density);
         float shortSideDp = Math.min(viewportWidth, viewportHeight) / density;
@@ -4148,10 +3270,6 @@ public final class MainActivity extends Activity {
         float diagonal = (float) Math.sqrt(widthInches * widthInches
                 + heightInches * heightInches);
         return diagonal >= 32f && diagonal <= 100f ? diagonal : -1f;
-    }
-
-    private static float roundUiScale(float value) {
-        return Math.round(value * 100f) / 100f;
     }
 
     private float effectiveUiDensity() {
@@ -4453,7 +3571,7 @@ public final class MainActivity extends Activity {
         }
         Channel[] channels = currentGroup().channels;
         if (currentChannelIndex < 0 || currentChannelIndex >= channels.length
-                || !sameChannelIdentity(channels[currentChannelIndex], channel)) {
+                || !ChannelKeys.sameChannelIdentity(channels[currentChannelIndex], channel)) {
             return;
         }
         getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
@@ -4463,24 +3581,6 @@ public final class MainActivity extends Activity {
         // The risky decoder/proxy transition is over once a real frame is rendered.
         // Stop the separate watchdog process so stable playback has no extra memory cost.
         releaseCrashRecovery(true);
-    }
-
-    private static boolean sameChannelIdentity(Channel first, Channel second) {
-        if (first == second) {
-            return true;
-        }
-        if (first == null || second == null || !first.name.equals(second.name)) {
-            return false;
-        }
-        if (first.yangshipinPid != null || second.yangshipinPid != null) {
-            return first.yangshipinPid != null
-                    && first.yangshipinPid.equals(second.yangshipinPid);
-        }
-        if (first.streamId != null || second.streamId != null) {
-            return first.streamId != null && first.streamId.equals(second.streamId);
-        }
-        return first.url == null ? second.url == null
-                : second.url != null && Channel.sameSourceUrl(first.url, second.url);
     }
 
     private void armCrashRecovery() {
@@ -4614,7 +3714,6 @@ public final class MainActivity extends Activity {
         numericChannelOverlay.setText(numericChannelInput);
         numericChannelOverlay.setVisibility(View.VISIBLE);
         numericChannelOverlay.bringToFront();
-        ensureFlyMouseOnTop();
         if (numericChannelInput.length() >= 3) {
             commitNumericChannel();
         } else {
@@ -4694,22 +3793,6 @@ public final class MainActivity extends Activity {
                 .putString(FAVORITE_CHANNEL_KEYS, values.toString()).apply();
     }
 
-    private static String favoriteKey(ChannelCatalog.Group group, Channel channel) {
-        if (group.source == ChannelCatalog.SOURCE_FAVORITES
-                && channel.favoriteKey != null) {
-            return channel.favoriteKey;
-        }
-        String identity = channel.yangshipinPid;
-        if (identity == null || identity.length() == 0) {
-            identity = channel.streamId;
-        }
-        if ((identity == null || identity.length() == 0) && channel.url != null) {
-            identity = channel.url;
-        }
-        return group.title + "\u001f" + channel.name + "\u001f"
-                + (identity == null ? "" : identity);
-    }
-
     private void refreshFavoriteCatalog() {
         ChannelCatalog.Group[] before = ChannelCatalog.GROUPS;
         String activeGroupTitle = null;
@@ -4722,7 +3805,7 @@ public final class MainActivity extends Activity {
             if (activeGroup.channels.length > 0) {
                 int activeIndex = ChannelCatalog.wrapIndex(
                         activeGroup.channels, currentChannelIndex);
-                activeChannelKey = favoriteKey(activeGroup,
+                activeChannelKey = ChannelKeys.favoriteKey(activeGroup,
                         activeGroup.channels[activeIndex]);
             }
         }
@@ -4735,9 +3818,9 @@ public final class MainActivity extends Activity {
                     continue;
                 }
                 for (Channel channel : group.channels) {
-                    if (wantedKey.equals(favoriteKey(group, channel))) {
+                    if (wantedKey.equals(ChannelKeys.favoriteKey(group, channel))) {
                         favorites.add(channel.asFavorite(wantedKey,
-                                catalogSource(group, channel)));
+                                ChannelKeys.catalogSource(group, channel)));
                         found = true;
                         break;
                     }
@@ -4752,9 +3835,9 @@ public final class MainActivity extends Activity {
 
         ChannelCatalog.Group[] after = ChannelCatalog.GROUPS;
         if (activeChannelKey != null) {
-            int titledGroup = findGroupByTitle(after, activeGroupTitle);
+            int titledGroup = ChannelKeys.findGroupByTitle(after, activeGroupTitle);
             if (titledGroup >= 0) {
-                int channelIndex = findChannelByKey(after[titledGroup], activeChannelKey);
+                int channelIndex = ChannelKeys.findChannelByKey(after[titledGroup], activeChannelKey);
                 if (channelIndex >= 0) {
                     currentGroupIndex = titledGroup;
                     currentChannelIndex = channelIndex;
@@ -4766,7 +3849,7 @@ public final class MainActivity extends Activity {
                     ChannelCatalog.Group group = after[groupIndex];
                     for (int channelIndex = 0;
                             channelIndex < group.channels.length; channelIndex++) {
-                        if (activeChannelKey.equals(favoriteKey(
+                        if (activeChannelKey.equals(ChannelKeys.favoriteKey(
                                 group, group.channels[channelIndex]))) {
                             currentGroupIndex = groupIndex;
                             currentChannelIndex = channelIndex;
@@ -4780,16 +3863,7 @@ public final class MainActivity extends Activity {
         currentChannelIndex = ChannelCatalog.defaultChannelIndex(currentGroup());
     }
 
-    private void migrateFavoriteGroupIndex(SharedPreferences preferences) {
-        if (preferences.getBoolean(FAVORITE_GROUP_INDEX_MIGRATED, false)) {
-            return;
-        }
-        SharedPreferences.Editor editor = preferences.edit()
-                .putBoolean(FAVORITE_GROUP_INDEX_MIGRATED, true);
-        // The new catalog intentionally starts from CCTV-1 and no longer restores
-        // the group index saved by catalog versions that always inserted favorites.
-        editor.apply();
-    }
+
 
     private void migrateMergedCentralGroups(SharedPreferences preferences) {
         if (preferences.getBoolean(CENTRAL_GROUPS_MERGED, false)) {
@@ -4835,7 +3909,7 @@ public final class MainActivity extends Activity {
         }
         ChannelCatalog.Group group = ChannelCatalog.GROUPS[browsingGroupIndex];
         return position >= 0 && position < group.channels.length
-                && favoriteChannelKeys.contains(favoriteKey(group, group.channels[position]));
+                && favoriteChannelKeys.contains(ChannelKeys.favoriteKey(group, group.channels[position]));
     }
 
     private void setFavoriteActionFocused(boolean focused) {
@@ -4860,7 +3934,7 @@ public final class MainActivity extends Activity {
             return;
         }
         Channel channel = group.channels[position];
-        String key = favoriteKey(group, channel);
+        String key = ChannelKeys.favoriteKey(group, channel);
         String browsingGroupTitle = group.title;
         boolean added;
         if (favoriteChannelKeys.contains(key)) {
@@ -4872,7 +3946,7 @@ public final class MainActivity extends Activity {
         }
         saveFavoriteChannels();
         refreshFavoriteCatalog();
-        int restoredBrowsingGroup = findGroupByTitle(
+        int restoredBrowsingGroup = ChannelKeys.findGroupByTitle(
                 ChannelCatalog.GROUPS, browsingGroupTitle);
         browsingGroupIndex = restoredBrowsingGroup >= 0
                 ? restoredBrowsingGroup : currentGroupIndex;
@@ -4905,7 +3979,6 @@ public final class MainActivity extends Activity {
         // so the remote OK key remains usable on both video and WebView channels.
         channelListPanel.bringToFront();
         updateChannelPanelWidth();
-        ensureFlyMouseOnTop();
         showChannelMenu(currentGroupIndex);
         applyClockLocation();
         channelList.post(new Runnable() {
@@ -5091,8 +4164,8 @@ public final class MainActivity extends Activity {
             int[] widths = fitTwoColumns(Math.max(2, panelWidth - fixedWidth),
                     groupDesired, channelDesired,
                     Math.round(150f * density), Math.round(215f * density));
-            setExactWidth(groupList, widths[0]);
-            setExactWidth(channelList, widths[1]);
+            UiMetrics.setExactWidth(groupList, widths[0]);
+            UiMetrics.setExactWidth(channelList, widths[1]);
             setPanelWidth(panelWidth);
             return;
         }
@@ -5109,9 +4182,9 @@ public final class MainActivity extends Activity {
         int[] widths = fitChannelColumns(availableColumns,
                 groupDesired, channelDesired, epgDesired,
                 groupMinimum, channelMinimum, epgMinimum);
-        setExactWidth(groupList, widths[0]);
-        setExactWidth(channelList, widths[1]);
-        setExactWidth(epgColumn, widths[2]);
+        UiMetrics.setExactWidth(groupList, widths[0]);
+        UiMetrics.setExactWidth(channelList, widths[1]);
+        UiMetrics.setExactWidth(epgColumn, widths[2]);
 
         setPanelWidth(panelWidth);
     }
@@ -5129,7 +4202,7 @@ public final class MainActivity extends Activity {
                 (int) Math.ceil(countPaint.measureText(String.valueOf(widestCount)))
                         + Math.round(14f * density));
         int chrome = Math.round(56f * density);
-        return clamp((int) Math.ceil(widest) + countWidth + chrome,
+        return UiMetrics.clamp((int) Math.ceil(widest) + countWidth + chrome,
                 Math.round(150f * density), Math.round(250f * density));
     }
 
@@ -5152,7 +4225,7 @@ public final class MainActivity extends Activity {
                 }
             }
         }
-        return clamp((int) Math.ceil(widest) + Math.round(28f * density),
+        return UiMetrics.clamp((int) Math.ceil(widest) + Math.round(28f * density),
                 Math.round(220f * density), Math.round(440f * density));
     }
 
@@ -5213,31 +4286,13 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static void setExactWidth(View view, int width) {
-        if (view == null) {
-            return;
-        }
-        ViewGroup.LayoutParams params = view.getLayoutParams();
-        if (params.width != width) {
-            params.width = width;
-            if (params instanceof LinearLayout.LayoutParams) {
-                ((LinearLayout.LayoutParams) params).weight = 0f;
-            }
-            view.setLayoutParams(params);
-        }
-    }
-
-    private static int clamp(int value, int minimum, int maximum) {
-        return Math.max(minimum, Math.min(maximum, value));
-    }
-
     private void updateChannelBarWidth() {
         int screenWidth = Math.max(root.getWidth(), getResources().getDisplayMetrics().widthPixels);
         float density = effectiveUiDensity();
-        int titleContent = measuredTextWidth(channelName) + measuredTextWidth(videoInfo)
+        int titleContent = TextFormats.measuredTextWidth(channelName) + TextFormats.measuredTextWidth(videoInfo)
                 + Math.round(12f * density);
         int leftContent = Math.max(titleContent,
-                Math.max(measuredTextWidth(statusText), measuredTextWidth(channelEpg)));
+                Math.max(TextFormats.measuredTextWidth(statusText), TextFormats.measuredTextWidth(channelEpg)));
         leftContent = Math.max(Math.round(390f * density),
                 leftContent + Math.round(8f * density));
 
@@ -5252,18 +4307,6 @@ public final class MainActivity extends Activity {
         ViewGroup.LayoutParams params = channelBar.getLayoutParams();
         params.width = Math.min(preferred, Math.max(1, screenWidth - margin));
         channelBar.setLayoutParams(params);
-    }
-
-    private static int measuredTextWidth(TextView view) {
-        if (view == null || view.getVisibility() == View.GONE || view.getText() == null) {
-            return 0;
-        }
-        String[] lines = view.getText().toString().split("\\n", -1);
-        float maximum = 0f;
-        for (String line : lines) {
-            maximum = Math.max(maximum, view.getPaint().measureText(line));
-        }
-        return (int) Math.ceil(maximum);
     }
 
     private String effectiveEpgUrl() {
@@ -5453,53 +4496,13 @@ public final class MainActivity extends Activity {
             }
         }
         if (channel == null || displayedChannel == null
-                || !displayedChannel.equals(channel.name) || hasSourceLinePosition(value)) {
+                || !displayedChannel.equals(channel.name) || TextFormats.hasSourceLinePosition(value)) {
             return value;
         }
         int count = Math.max(1, channel.sourceCount());
         int source = (selectedSourceIndex % count + count) % count + 1;
         return value.length() == 0 ? "线路 " + source + "/" + count
                 : value + " · 线路 " + source + "/" + count;
-    }
-
-    private static boolean hasSourceLinePosition(String value) {
-        if (value == null) {
-            return false;
-        }
-        int lineStart = value.indexOf("线路");
-        while (lineStart >= 0) {
-            int cursor = lineStart + 2;
-            while (cursor < value.length() && Character.isWhitespace(value.charAt(cursor))) {
-                cursor++;
-            }
-            int firstDigit = cursor;
-            while (cursor < value.length() && Character.isDigit(value.charAt(cursor))) {
-                cursor++;
-            }
-            if (cursor > firstDigit) {
-                while (cursor < value.length()
-                        && Character.isWhitespace(value.charAt(cursor))) {
-                    cursor++;
-                }
-                if (cursor < value.length() && value.charAt(cursor) == '/') {
-                    cursor++;
-                    while (cursor < value.length()
-                            && Character.isWhitespace(value.charAt(cursor))) {
-                        cursor++;
-                    }
-                    int secondDigit = cursor;
-                    while (cursor < value.length()
-                            && Character.isDigit(value.charAt(cursor))) {
-                        cursor++;
-                    }
-                    if (cursor > secondDigit) {
-                        return true;
-                    }
-                }
-            }
-            lineStart = value.indexOf("线路", lineStart + 2);
-        }
-        return false;
     }
 
     private void updateLoadingStatus(final String status) {
@@ -5683,7 +4686,7 @@ public final class MainActivity extends Activity {
                 ? String.format(Locale.US, "%.0ffps", stats.frameRate) : "--fps";
         if (videoInfo != null) {
             videoInfo.setText(resolution + " · " + fps + " · "
-                    + formatBitrate(stats.videoBitrate));
+                    + TextFormats.formatBitrate(stats.videoBitrate));
         }
         if (channelBar.getVisibility() == View.VISIBLE) {
             updateChannelCardEpg(channelName.getText().toString());
@@ -5697,15 +4700,15 @@ public final class MainActivity extends Activity {
             String debugFps = stats.frameRate > 0.01f
                     ? String.format(Locale.US, "%.1ffps", stats.frameRate) : "--fps";
             debugInfoOverlay.setText("视频 " + debugResolution + " · " + debugFps
-                    + " · " + stats.videoCodec + " · " + formatBitrate(stats.videoBitrate)
+                    + " · " + stats.videoCodec + " · " + TextFormats.formatBitrate(stats.videoBitrate)
                     + "　音频 " + stats.audioCodec + " · "
-                    + formatBitrate(stats.audioBitrate)
-                    + "\n" + stats.cpuLabel + " " + formatCpuUsage(stats.cpuUsage)
+                    + TextFormats.formatBitrate(stats.audioBitrate)
+                    + "\n" + stats.cpuLabel + " " + SystemCpu.formatCpuUsage(stats.cpuUsage)
                     + "　源 " + currentDebugSourcePath());
         }
         if (networkSpeedOverlay != null && showNetworkSpeed) {
             networkSpeedOverlay.setText(
-                    formatNetworkSpeed(sampleNetworkBytesPerSecond()));
+                    TextFormats.formatNetworkSpeed(sampleNetworkBytesPerSecond()));
         }
     }
 
@@ -5751,17 +4754,6 @@ public final class MainActivity extends Activity {
         networkSpeedSampleCount = 0;
         smoothedNetworkBytesPerSecond = -1L;
         sampledNetworkProxy = null;
-    }
-
-    private static String formatNetworkSpeed(long bytesPerSecond) {
-        if (bytesPerSecond < 0L) {
-            return "--";
-        }
-        if (bytesPerSecond >= 1024L * 1024L) {
-            return String.format(Locale.US, "%.1f MB/s",
-                    bytesPerSecond / (1024f * 1024f));
-        }
-        return Math.round(bytesPerSecond / 1024f) + " KB/s";
     }
 
     private PlaybackDebugStats collectPlaybackStreamStats(float measuredOutputFps) {
@@ -5894,7 +4886,7 @@ public final class MainActivity extends Activity {
             float usage = -1f;
             if (lastHardwareCpuTotalMillis > 0L && totalDelta > 0L
                     && activeDelta >= 0L) {
-                usage = clampCpuUsage(activeDelta * 100f / totalDelta);
+                usage = SystemCpu.clampCpuUsage(activeDelta * 100f / totalDelta);
             }
             lastHardwareCpuActiveMillis = active;
             lastHardwareCpuTotalMillis = total;
@@ -5928,7 +4920,7 @@ public final class MainActivity extends Activity {
         int cpuCount = 0;
         for (File cpuDirectory : cpuDirectories) {
             String name = cpuDirectory.getName();
-            if (!isCpuDirectoryName(name) || !isCpuOnline(cpuDirectory)) {
+            if (!SystemCpu.isCpuDirectoryName(name) || !SystemCpu.isCpuOnline(cpuDirectory)) {
                 continue;
             }
             File[] states;
@@ -5948,7 +4940,7 @@ public final class MainActivity extends Activity {
                 }
                 try {
                     coreIdleMicros += Long.parseLong(
-                            readSmallAsciiFile(new File(state, "time")));
+                            SystemCpu.readSmallAsciiFile(new File(state, "time")));
                     readable = true;
                 } catch (IOException ignored) {
                 } catch (NumberFormatException ignored) {
@@ -5972,7 +4964,7 @@ public final class MainActivity extends Activity {
                 && elapsedMicros > 0L && idleDelta >= 0L) {
             long availableMicros = elapsedMicros * cpuCount;
             if (availableMicros > 0L) {
-                usage = clampCpuUsage(
+                usage = SystemCpu.clampCpuUsage(
                         (availableMicros - Math.min(availableMicros, idleDelta))
                                 * 100f / availableMicros);
             }
@@ -5985,7 +4977,7 @@ public final class MainActivity extends Activity {
 
     private float sampleSystemLoadAverage() {
         try {
-            String text = readSmallAsciiFile(new File("/proc/loadavg"));
+            String text = SystemCpu.readSmallAsciiFile(new File("/proc/loadavg"));
             int separator = text.indexOf(' ');
             String first = separator >= 0 ? text.substring(0, separator) : text;
             float oneMinuteLoad = Float.parseFloat(first);
@@ -6000,56 +4992,12 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static boolean isCpuDirectoryName(String name) {
-        if (name == null || name.length() <= 3 || !name.startsWith("cpu")) {
-            return false;
-        }
-        for (int index = 3; index < name.length(); index++) {
-            if (!Character.isDigit(name.charAt(index))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isCpuOnline(File cpuDirectory) {
-        File online = new File(cpuDirectory, "online");
-        if (!online.exists()) {
-            return true;
-        }
-        try {
-            return !"0".equals(readSmallAsciiFile(online));
-        } catch (IOException ignored) {
-            return true;
-        } catch (SecurityException ignored) {
-            return true;
-        }
-    }
-
-    private static String readSmallAsciiFile(File file) throws IOException {
-        FileInputStream input = new FileInputStream(file);
-        try {
-            byte[] buffer = new byte[128];
-            int length = input.read(buffer);
-            if (length <= 0) {
-                throw new IOException("Empty file: " + file);
-            }
-            return new String(buffer, 0, length, "US-ASCII").trim();
-        } finally {
-            input.close();
-        }
-    }
-
     private void useSystemCpuMetric(String source, String label) {
         systemCpuMetricLabel = label;
         if (!source.equals(systemCpuMetricSource)) {
             systemCpuMetricSource = source;
             Log.i(TAG, "System CPU metric source=" + source);
         }
-    }
-
-    private static float clampCpuUsage(float usage) {
-        return Math.max(0f, Math.min(100f, usage));
     }
 
     private void applyIjkMetadata(PlaybackDebugStats stats) {
@@ -6067,12 +5015,12 @@ public final class MainActivity extends Activity {
                 if (stats.frameRate <= 0.01f && video.mFpsNum > 0 && video.mFpsDen > 0) {
                     stats.frameRate = (float) video.mFpsNum / video.mFpsDen;
                 }
-                stats.videoCodec = readableCodec(video.mCodecName, null);
+                stats.videoCodec = TextFormats.readableCodec(video.mCodecName, null);
                 stats.videoBitrate = video.mBitrate;
             }
             IjkMediaMeta.IjkStreamMeta audio = meta.mAudioStream;
             if (audio != null) {
-                stats.audioCodec = readableCodec(audio.mCodecName, null);
+                stats.audioCodec = TextFormats.readableCodec(audio.mCodecName, null);
                 stats.audioBitrate = audio.mBitrate;
             }
         } catch (RuntimeException error) {
@@ -6098,10 +5046,10 @@ public final class MainActivity extends Activity {
                     activePlayer.getAudioCachedDuration(), 4000L, 10000000L);
 
             if (videoSample > 0L) {
-                estimatedVideoBitrate = smoothBitrate(estimatedVideoBitrate, videoSample);
+                estimatedVideoBitrate = TextFormats.smoothBitrate(estimatedVideoBitrate, videoSample);
             }
             if (audioSample > 0L) {
-                estimatedAudioBitrate = smoothBitrate(estimatedAudioBitrate, audioSample);
+                estimatedAudioBitrate = TextFormats.smoothBitrate(estimatedAudioBitrate, audioSample);
             }
 
             long totalBitrate = activePlayer.getBitRate();
@@ -6137,80 +5085,6 @@ public final class MainActivity extends Activity {
         }
         long bitrate = cachedBytes * 8000L / cachedDurationMs;
         return bitrate >= minimumBitrate && bitrate <= maximumBitrate ? bitrate : -1L;
-    }
-
-    private static long smoothBitrate(long previous, long sample) {
-        if (previous <= 0L) {
-            return sample;
-        }
-        // A 25% moving update keeps the overlay readable while following changes.
-        return previous + (sample - previous) / 4L;
-    }
-
-    private static String readableCodec(String mimeOrCodec, String codecs) {
-        String value = mimeOrCodec;
-        if (value == null || value.trim().length() == 0) {
-            value = codecs;
-        }
-        if (value == null || value.trim().length() == 0) {
-            return "--";
-        }
-        String lower = value.toLowerCase(Locale.US);
-        if (lower.contains("avc") || lower.contains("h264") || lower.contains("h.264")) {
-            return "H.264";
-        }
-        if (lower.contains("hevc") || lower.contains("h265") || lower.contains("h.265")
-                || lower.contains("hvc1") || lower.contains("hev1")) {
-            return "H.265";
-        }
-        if (lower.contains("mpeg2video") || lower.contains("video/mpeg2")) {
-            return "MPEG-2";
-        }
-        if (lower.contains("mp4v") || lower.contains("mpeg4")) {
-            return "MPEG-4";
-        }
-        if (lower.contains("mp4a") || lower.contains("aac")) {
-            return "AAC";
-        }
-        if (lower.contains("eac3") || lower.contains("e-ac-3")) {
-            return "E-AC-3";
-        }
-        if (lower.contains("ac3") || lower.contains("ac-3")) {
-            return "AC-3";
-        }
-        if (lower.contains("opus")) {
-            return "Opus";
-        }
-        if (lower.contains("vorbis")) {
-            return "Vorbis";
-        }
-        if (lower.contains("audio/mpeg") || lower.equals("mp3")) {
-            return "MP3";
-        }
-        int slash = value.lastIndexOf('/');
-        String shortName = slash >= 0 ? value.substring(slash + 1) : value;
-        int comma = shortName.indexOf(',');
-        if (comma > 0) {
-            shortName = shortName.substring(0, comma);
-        }
-        return shortName.length() > 16 ? shortName.substring(0, 16) : shortName;
-    }
-
-    private static String formatBitrate(long bitsPerSecond) {
-        if (bitsPerSecond <= 0L) {
-            return "--";
-        }
-        if (bitsPerSecond >= 1000000L) {
-            return String.format(Locale.US, "%.1fMbps", bitsPerSecond / 1000000f);
-        }
-        if (bitsPerSecond >= 1000L) {
-            return Math.round(bitsPerSecond / 1000f) + "kbps";
-        }
-        return bitsPerSecond + "bps";
-    }
-
-    private static String formatCpuUsage(float usage) {
-        return usage >= 0f ? String.format(Locale.US, "%.0f%%", usage) : "--";
     }
 
     private static final class PlaybackDebugStats {
@@ -6487,10 +5361,10 @@ public final class MainActivity extends Activity {
                 if (playbackGestureVertical && playbackGestureLeftSide) {
                     updateGestureVolume(deltaY);
                 } else if (playbackGestureVertical) {
-                    moveSwitchPreview(0f, dampedGestureDistance(
+                    moveSwitchPreview(0f, UiMetrics.dampedGestureDistance(
                             deltaY, Math.max(1f, root.getHeight())));
                 } else if (playbackGestureHorizontal) {
-                    moveSwitchPreview(dampedGestureDistance(
+                    moveSwitchPreview(UiMetrics.dampedGestureDistance(
                             deltaX, Math.max(1f, root.getWidth())), 0f);
                 }
                 return true;
@@ -6589,10 +5463,10 @@ public final class MainActivity extends Activity {
                     channelSwipeBitmap = bitmap;
                     channelSwipeSnapshot.setImageBitmap(bitmap);
                     if (playbackGestureVertical && !playbackGestureLeftSide) {
-                        moveSwitchPreview(0f, dampedGestureDistance(
+                        moveSwitchPreview(0f, UiMetrics.dampedGestureDistance(
                                 playbackGestureDeltaY, Math.max(1f, root.getHeight())));
                     } else if (playbackGestureHorizontal) {
-                        moveSwitchPreview(dampedGestureDistance(
+                        moveSwitchPreview(UiMetrics.dampedGestureDistance(
                                 playbackGestureDeltaX, Math.max(1f, root.getWidth())), 0f);
                     }
                 }
@@ -6601,12 +5475,6 @@ public final class MainActivity extends Activity {
             bitmap.recycle();
             Log.w(TAG, "Unable to capture channel swipe snapshot", error);
         }
-    }
-
-    private static float dampedGestureDistance(float distance, float viewport) {
-        float absolute = Math.abs(distance);
-        float damped = absolute * 0.78f / (1f + absolute / (viewport * 1.35f));
-        return Math.copySign(Math.min(viewport * 0.82f, damped), distance);
     }
 
     private void moveSwitchPreview(float translationX, float translationY) {
@@ -6698,18 +5566,8 @@ public final class MainActivity extends Activity {
     }
 
     private void resetPlaybackLayerImmediately() {
-        resetPlaybackLayerImmediately(videoView);
-        resetPlaybackLayerImmediately(webSourceView);
-    }
-
-    private static void resetPlaybackLayerImmediately(View view) {
-        if (view == null) {
-            return;
-        }
-        view.animate().cancel();
-        view.setTranslationX(0f);
-        view.setTranslationY(0f);
-        view.setAlpha(1f);
+        PlaybackSupport.resetPlaybackLayerImmediately(videoView);
+        PlaybackSupport.resetPlaybackLayerImmediately(webSourceView);
     }
 
     private void animateRelativeChannelSwitch(final int offset, final float direction) {
@@ -6851,7 +5709,7 @@ public final class MainActivity extends Activity {
             setRemoteInputMode(false);
             if (channelListPanel != null
                     && channelListPanel.getVisibility() == View.VISIBLE
-                    && !isPointInsideView(event, channelListPanel)) {
+                    && !UiMetrics.isPointInsideView(event, channelListPanel)) {
                 closeChannelList();
                 return true;
             }
@@ -6878,12 +5736,6 @@ public final class MainActivity extends Activity {
             return handlePlaybackGesture(event);
         }
         return super.dispatchTouchEvent(event);
-    }
-
-    private static boolean isPointInsideView(MotionEvent event, View view) {
-        Rect bounds = new Rect();
-        return view.getGlobalVisibleRect(bounds)
-                && bounds.contains((int) event.getRawX(), (int) event.getRawY());
     }
 
     @Override
@@ -7102,7 +5954,6 @@ public final class MainActivity extends Activity {
         playingDiscoveredWebStream = false;
         clearWebCloseConfirmation();
         showChannelBar(currentChannel().name, "已返回原网页");
-        ensureFlyMouseOnTop();
         return true;
     }
 

@@ -6,6 +6,10 @@ app/src/main/obj/
 app/src/main/jniLibs/
 local.properties
 .signing/
+# 本地构建镜像配置：含本地 SDK/Gradle 路径与镜像地址，不进上游
+build-mirror.init.gradle
+# 本地调试签名：私钥，严禁入库
+.debug-signing/
 *.iml
 *.log
 *.trace

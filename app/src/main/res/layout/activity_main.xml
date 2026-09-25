@@ -428,10 +428,4 @@
             android:text="@string/confirm"
             android:textSize="15sp" />
     </LinearLayout>
-
-    <xiao.bu.tv.FlyMouseCursorView
-        android:id="@+id/fly_mouse_cursor"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
 </FrameLayout>
