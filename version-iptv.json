@@ -1,11 +1,11 @@
 {
-    "versionCode": 6,
-    "versionName": "1.6.0",
-    "apkUrl": "https://github.com/buhanzhe/NativeWasmTv/releases/latest/download/nTv.apk",
-    "apk32Url": "https://github.com/buhanzhe/NativeWasmTv/releases/latest/download/nTv.apk",
-    "apk64Url": "https://github.com/buhanzhe/NativeWasmTv/releases/latest/download/nTv64.apk",
-    "sha256": "efdae932d1a98e003050e18b2babd35fd1c2c8e38b9e1e2123c0e3a817fcc3a7",
-    "sha25632": "efdae932d1a98e003050e18b2babd35fd1c2c8e38b9e1e2123c0e3a817fcc3a7",
-    "sha25664": "8a4a4c63b8a714b4275580b6625e9629025d301e2fe562b2cc6a1921d4abe8c8",
-    "releaseNotes": "\u4fee\u590d\u91779\u811a\u672c\u89e3\u6790\u4e0e\u8fde\u7eed\u5207\u53f0\u95ee\u9898\uff0c\u4f18\u5316\u9891\u9053\u6536\u85cf\u56fe\u6807\u53ca\u7cfb\u7edf\u4fe1\u606f\u663e\u793a\u3002"
+    "versionCode": 8,
+    "versionName": "1.7.0",
+    "apkUrl": "https://github.com/CJXkeep/NativeWasmTv/releases/latest/download/nTv.apk",
+    "apk32Url": "https://github.com/CJXkeep/NativeWasmTv/releases/latest/download/nTv.apk",
+    "apk64Url": "https://github.com/CJXkeep/NativeWasmTv/releases/latest/download/nTv64.apk",
+    "sha256": "db6a481bae60085577382734b2b6b29fe7b6ccd7698b4cf82e47739fd0974f1b",
+    "sha25632": "db6a481bae60085577382734b2b6b29fe7b6ccd7698b4cf82e47739fd0974f1b",
+    "sha25664": "999d626a8c117853ed925e533517beac0cca64e5323a9e2a0a054dedbf0714e0",
+    "releaseNotes": "\u6f14\u793a\uff1a\u81ea\u52a8\u4e0b\u8f7d\u4e0e\u5b89\u88c5\u63d0\u793a"
 }

@@ -467,16 +467,15 @@ public final class CjsPluginRuntime {
         }
     }
 
-    private static byte[] download(String originalUrl, int maxBytes) throws IOException {
-        String url = originalUrl;
-        if (url.contains("github.com/") || url.contains("raw.githubusercontent.com/")) {
-            url = GithubProxy.apply(url);
-        }
-        HttpURLConnection connection = NetworkClient.open(new URL(url));
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(20000);
-        connection.setInstanceFollowRedirects(true);
-        connection.setRequestProperty("Accept-Encoding", "identity");
+    private static byte[] download(final String originalUrl, int maxBytes) throws IOException {
+        // 插件文件与目录同样走加速候选回退（I4 决策 5）：加速域挂掉时自动直连兜底。
+        HttpURLConnection connection = GithubProxy.open(originalUrl, 10000, 20000,
+                new GithubProxy.HeaderSetter() {
+                    @Override
+                    public void apply(HttpURLConnection value) {
+                        value.setRequestProperty("Accept-Encoding", "identity");
+                    }
+                });
         try {
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) {

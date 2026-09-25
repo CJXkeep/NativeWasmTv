@@ -62,9 +62,11 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -311,6 +313,9 @@ public final class MainActivity extends Activity {
     private String lastFailureReason = "";
     private long lastFailureAt;
     private boolean stickyStatus;
+    /** I4 A7：终态下 OK 键的「长按反馈 / 短按开列表」两段式状态。 */
+    private boolean diagnosticsFeedbackArmed;
+    private boolean diagnosticsFeedbackLongPress;
     private int playbackReadyRequestId = -1;
     private int browsingGroupIndex;
     private int pendingRelativeGroupIndex = -1;
@@ -506,6 +511,7 @@ public final class MainActivity extends Activity {
         // Context assignment only: no plugin file access, parsing, hashing, network or dlopen.
         NetworkClient.initialize(this);
         CjsPluginRuntime.initialize(this);
+        PlaybackDiagnostics.initialize(this);
         CrashReporter.install(this);
         showCrashRecoveryNotice();
         TlsCompat.install();
@@ -716,7 +722,10 @@ public final class MainActivity extends Activity {
         });
         root.requestFocus();
         autoUpdater = new AutoUpdater(this);
-        autoUpdater.checkForUpdates();
+        // 首次启动（进程内 lastCheckAt == 0）必然检查；之后由前台周期任务与 onResume 的「到期才检查」接管（I4 B6）。
+        // 这里必须传真实间隔：传 0 会让每次 Activity 重建都重查，并因此重复弹安装提示（I4 review P0）。
+        autoUpdater.checkForUpdatesIfDue(AutoUpdater.CHECK_INTERVAL_MS);
+        channelBar.postDelayed(periodicUpdateCheck, AutoUpdater.CHECK_INTERVAL_MS);
         migrateMergedCentralGroups(preferences);
         boolean hasLastChannel = preferences.contains(LAST_GROUP_INDEX)
                 && preferences.contains(LAST_CHANNEL_INDEX);
@@ -1120,6 +1129,21 @@ public final class MainActivity extends Activity {
                     }
                 }
 
+                @Override
+                public String diagnosticsJson() {
+                    return buildDiagnosticsJson();
+                }
+
+                @Override
+                public String sendDiagnostics() {
+                    return triggerDiagnosticsSend();
+                }
+
+                @Override
+                public String checkUpdate() {
+                    return triggerUpdateCheck();
+                }
+
             });
             controlServer.start();
             refreshManagementAddress();
@@ -1144,6 +1168,109 @@ public final class MainActivity extends Activity {
             managementUrl.setText(url);
             managementQr.setText(url);
         }
+    }
+
+    /** 诊断数据（I4 A5）：只读，控制页展示与一键发送共用。 */
+    private String buildDiagnosticsJson() {
+        try {
+            JSONObject root = new JSONObject(PlaybackDiagnostics.fullJson(deviceDiagnosticLabel()));
+            root.put("playback", playbackDiagnosticsJson());
+            root.put("network", networkDiagnosticsJson());
+            root.put("sender", jsonOf(DiagnosticsSender.statusJson()));
+            root.put("sendConfigured", DiagnosticsSender.isConfigured(this));
+            // 只回显脱敏后的地址（query 已打码），供控制页确认配置是否正确。
+            root.put("senderTarget",
+                    PlaybackDiagnostics.sanitizeUrl(DiagnosticsSender.webhook(this)));
+            return root.toString();
+        } catch (JSONException error) {
+            return "{\"ok\":false,\"message\":\"诊断信息生成失败\"}";
+        }
+    }
+
+    /** 触发一次发送并立即返回发送状态（异步执行，控制页轮询）。 */
+    private String triggerDiagnosticsSend() {
+        DiagnosticsSender.send(this, buildDiagnosticsReport());
+        return DiagnosticsSender.statusJson();
+    }
+
+    /** 触发一次更新检查（I4 B2）：复用启动检查逻辑，结果在 update 块里轮询。 */
+    private String triggerUpdateCheck() {
+        if (autoUpdater != null) {
+            autoUpdater.checkForUpdates();
+        }
+        return AutoUpdater.statusJson();
+    }
+
+    /** 发送给作者的报告文本：已脱敏、头部优先（I4 决策 3）。 */
+    private String buildDiagnosticsReport() {
+        Channel channel = currentChannel();
+        List<String> extra = new ArrayList<String>();
+        extra.add("当前 " + (channel == null ? "未知" : channel.name)
+                + "（线路 " + (currentSourceIndex + 1) + "/"
+                + (channel == null ? 1 : Math.max(1, channel.sourceCount())) + "）"
+                + " · 状态 " + playbackStateName()
+                + (lastFailureReason.length() == 0 ? "" : " · " + lastFailureReason));
+        extra.add("网络 dns=" + NetworkClient.getDnsMode() + " · " + GithubProxy.summaryText());
+        return PlaybackDiagnostics.reportText(deviceDiagnosticLabel(), extra,
+                PlaybackDiagnostics.crashText());
+    }
+
+    private JSONObject playbackDiagnosticsJson() throws JSONException {
+        Channel channel = currentChannel();
+        return new JSONObject()
+                .put("channel", channel == null ? "" : channel.name)
+                .put("sourceIndex", currentSourceIndex + 1)
+                .put("sourceCount", channel == null ? 0 : Math.max(1, channel.sourceCount()))
+                .put("state", playbackStateName())
+                .put("reason", lastFailureReason)
+                .put("lastErrorAt", lastFailureAt)
+                .put("attempt", triedCustomSources)
+                .put("consecutiveSkips", consecutiveChannelSkips)
+                .put("stickyError", stickyStatus)
+                .put("uptimeMs", SystemClock.elapsedRealtime());
+    }
+
+    private JSONObject networkDiagnosticsJson() throws JSONException {
+        return new JSONObject()
+                .put("dnsMode", NetworkClient.getDnsMode())
+                .put("proxy", jsonOf(GithubProxy.statusJson()))
+                .put("update", jsonOf(AutoUpdater.statusJson()));
+    }
+
+    /** 字符串转 JSON：状态生成失败时退化为空对象，不影响整体响应。 */
+    private static JSONObject jsonOf(String json) {
+        try {
+            return new JSONObject(json == null || json.length() == 0 ? "{}" : json);
+        } catch (JSONException error) {
+            return new JSONObject();
+        }
+    }
+
+    /** 设备标签：机型 + 局域网 IP 尾号，多台设备在同一个群里靠它区分。 */
+    private String deviceDiagnosticLabel() {
+        String model = Build.MODEL == null || Build.MODEL.length() == 0
+                ? "Android TV" : Build.MODEL;
+        String suffix = lanAddressSuffix();
+        return suffix.length() == 0 ? model : model + " · ." + suffix;
+    }
+
+    private String lanAddressSuffix() {
+        if (controlServer == null) {
+            return "";
+        }
+        String url = controlServer.getLanUrl();
+        if (url == null) {
+            return "";
+        }
+        int start = url.indexOf("//");
+        start = start < 0 ? 0 : start + 2;
+        int end = url.indexOf(':', start);
+        if (end < 0) {
+            end = url.indexOf('/', start);
+        }
+        String host = end < 0 ? url.substring(start) : url.substring(start, end);
+        int dot = host.lastIndexOf('.');
+        return dot < 0 || dot + 1 >= host.length() ? "" : host.substring(dot + 1);
     }
 
     private String buildControlState() {
@@ -1189,6 +1316,11 @@ public final class MainActivity extends Activity {
             root.put("video", new JSONObject()
                     .put("width", Math.max(0, videoWidth))
                     .put("height", Math.max(0, videoHeight)));
+            // 更新检查与诊断发送状态（I4 B2）：只读，供控制页「维护」页展示
+            root.put("update", jsonOf(AutoUpdater.statusJson()));
+            root.put("diagnostics", new JSONObject()
+                    .put("sender", jsonOf(DiagnosticsSender.statusJson()))
+                    .put("sendConfigured", DiagnosticsSender.isConfigured(this)));
             // 播放态与最近一次失败：只读可观测性，不新增设置项
             root.put("playback", new JSONObject()
                     .put("state", playbackStateName())
@@ -1314,6 +1446,17 @@ public final class MainActivity extends Activity {
         boolean applyWebViewSettings = false;
         if (request.has("cjsPluginManifestUrl")) {
             CjsPluginRuntime.setManifestUrl(request.optString("cjsPluginManifestUrl", ""));
+        }
+        // 诊断接收地址（I4 A5）：作者工具，覆盖编译期注入值；空串即清除。
+        if (request.has("diagnosticsWebhook")) {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
+                    .putString(DiagnosticsSender.PREF_WEBHOOK,
+                            request.optString("diagnosticsWebhook", "").trim()).apply();
+        }
+        if (request.has("diagnosticsSecret")) {
+            getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit()
+                    .putString(DiagnosticsSender.PREF_SECRET,
+                            request.optString("diagnosticsSecret", "").trim()).apply();
         }
         final boolean updateCjsPlugin = request.optBoolean("updateCjsPlugin", false);
         if (request.has("dnsMode")) {
@@ -2229,6 +2372,7 @@ public final class MainActivity extends Activity {
         }
         if (automatic) {
             triedCustomSources++;
+            recordDiagnostic("source", channel, reason, triedCustomSources);
             Log.i(TAG, "Auto source switch channel=" + channel.name
                     + " to=" + (currentSourceIndex + 1) + "/" + count
                     + " attempt=" + triedCustomSources + " reason=" + reason);
@@ -2916,6 +3060,8 @@ public final class MainActivity extends Activity {
             @Override
             public boolean onError(IMediaPlayer mediaPlayer, int what, int extra) {
                 if (player == mediaPlayer) {
+                    recordDiagnostic("player", channel,
+                            "player error " + what + "/" + extra, triedCustomSources);
                     if (videoRenderingStarted || playbackProgressObserved
                             || playbackRecoveryAttempts > 0) {
                         final IMediaPlayer failedPlayer = mediaPlayer;
@@ -3513,6 +3659,7 @@ public final class MainActivity extends Activity {
         }
         stallRecoveryRequestId = requestId;
         syncPlaybackRecoveryTarget();
+        recordDiagnostic("stall", currentChannel(), reason, playbackRecoveryAttempts);
         if (playbackRecoveryAttempts < PLAYBACK_RECOVERY_MAX_ATTEMPTS) {
             playbackRecoveryAttempts++;
             lastPlaybackRecoveryAt = SystemClock.elapsedRealtime();
@@ -3567,6 +3714,7 @@ public final class MainActivity extends Activity {
      * 所以整个决策与动作都收敛到 UI 线程执行（已在 UI 线程时立即执行，不改变同步语义）。
      */
     private void handleChannelFailure(final Channel channel, final String reason) {
+        recordDiagnostic("channel", channel, reason, triedCustomSources);
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -3578,6 +3726,73 @@ public final class MainActivity extends Activity {
             }
         });
     }
+
+    /**
+     * 失败链埋点（I4 决策 2）：只记一行短记录，不参与播放决策、不抛异常。
+     * 线路地址在这里脱敏后落盘，供控制页查看与一键发送。
+     */
+    private void recordDiagnostic(String stage, Channel channel, String reason, int attempt) {
+        if (channel == null) {
+            return;
+        }
+        try {
+            PlaybackDiagnostics.record(stage, channel.name,
+                    channel.sourceUrl(currentSourceIndex), reason, attempt, 0L);
+        } catch (RuntimeException error) {
+            Log.w(TAG, "Unable to record diagnostic", error);
+        }
+    }
+
+    /** I4 A7：OK 键可能是 DPAD_CENTER 或 ENTER，两个都要覆盖。 */
+    private static boolean isDiagnosticsFeedbackKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER;
+    }
+
+    /** 长按反馈只在坏台终态、且没有其它面板占用按键时生效。 */
+    private boolean canSendDiagnosticsNow() {
+        return stickyStatus
+                && channelListPanel.getVisibility() != View.VISIBLE
+                && managementPanel.getVisibility() != View.VISIBLE
+                && backPrompt.getVisibility() != View.VISIBLE;
+    }
+
+    /** 遥控器触发的诊断发送：先给一次 Toast，结果由轮询给出（I4 决策 7/8）。 */
+    private void triggerDiagnosticsFeedback() {
+        if (!DiagnosticsSender.isConfigured(this)) {
+            Toast.makeText(this, "未配置反馈接收地址", Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(this, "正在发送故障信息…", Toast.LENGTH_SHORT).show();
+        DiagnosticsSender.send(this, buildDiagnosticsReport());
+        channelBar.postDelayed(diagnosticsFeedbackResult, 1500L);
+    }
+
+    private final Runnable diagnosticsFeedbackResult = new Runnable() {
+        @Override
+        public void run() {
+            String state = DiagnosticsSender.state();
+            if (DiagnosticsSender.STATE_SENT.equals(state)) {
+                Toast.makeText(MainActivity.this, "故障信息已发送", Toast.LENGTH_LONG).show();
+            } else if (DiagnosticsSender.STATE_FAILED.equals(state)
+                    || DiagnosticsSender.STATE_SKIPPED.equals(state)) {
+                Toast.makeText(MainActivity.this,
+                        "发送失败：" + DiagnosticsSender.stateReason(), Toast.LENGTH_LONG).show();
+            } else {
+                channelBar.postDelayed(this, 1500L);
+            }
+        }
+    };
+
+    /** I4 B6：前台周期检查更新，覆盖「电视长期待机不重启」的场景。 */
+    private final Runnable periodicUpdateCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (autoUpdater != null) {
+                autoUpdater.checkForUpdatesIfDue(AutoUpdater.CHECK_INTERVAL_MS);
+            }
+            channelBar.postDelayed(this, AutoUpdater.CHECK_INTERVAL_MS);
+        }
+    };
 
     /** 坏台自动跳过；跳过成功返回 true。计数上限与「相邻即自身」的判定都收在这里。 */
     private boolean skipToNextChannel(Channel failed, String reason) {
@@ -3615,6 +3830,7 @@ public final class MainActivity extends Activity {
                 }
                 abortChannelSwitchAnimation();
                 stickyStatus = true;
+                recordDiagnostic("terminal", channel, reason, triedCustomSources);
                 hideLoading();
                 clearPendingPlayer();
                 releasePlayer();
@@ -5831,6 +6047,31 @@ public final class MainActivity extends Activity {
         if (event.getAction() == KeyEvent.ACTION_DOWN && rawKeyCode != keyCode) {
             Log.d(TAG, "Normalized remote key " + rawKeyCode + " to " + keyCode);
         }
+        // I4 A7：坏台终态下 OK 改为「长按反馈问题 / 短按打开列表」。
+        // 现有实现是「按下即开列表」，若沿用会让长按先弹出频道列表，所以这里两段式接管。
+        if (isDiagnosticsFeedbackKey(keyCode) && event.getAction() == KeyEvent.ACTION_DOWN
+                && (diagnosticsFeedbackArmed || canSendDiagnosticsNow())) {
+            if (isHandledRemoteKey(keyCode)) {
+                setRemoteInputMode(true);
+            }
+            boolean longPress = event.getRepeatCount() > 0
+                    || (event.getFlags() & KeyEvent.FLAG_LONG_PRESS) != 0;
+            diagnosticsFeedbackLongPress = longPress;
+            diagnosticsFeedbackArmed = true;
+            if (longPress) {
+                triggerDiagnosticsFeedback();
+            }
+            return true;
+        }
+        if (diagnosticsFeedbackArmed && event.getAction() == KeyEvent.ACTION_UP) {
+            boolean longPress = diagnosticsFeedbackLongPress;
+            diagnosticsFeedbackArmed = false;
+            diagnosticsFeedbackLongPress = false;
+            if (!longPress) {
+                openChannelList();
+            }
+            return true;
+        }
         if (event.getAction() == KeyEvent.ACTION_DOWN && isHandledRemoteKey(keyCode)) {
             setRemoteInputMode(true);
         }
@@ -6062,6 +6303,14 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // I4 B6：回到前台时若距上次检查已超间隔就补一次，并重置周期任务（避免重复排队）。
+        if (autoUpdater != null) {
+            autoUpdater.checkForUpdatesIfDue(AutoUpdater.CHECK_INTERVAL_MS);
+            if (channelBar != null) {
+                channelBar.removeCallbacks(periodicUpdateCheck);
+                channelBar.postDelayed(periodicUpdateCheck, AutoUpdater.CHECK_INTERVAL_MS);
+            }
+        }
         if (hasActivePlayer()) {
             requestPlaybackAudioFocus();
             applyPlaybackMuteState();
@@ -6088,6 +6337,10 @@ public final class MainActivity extends Activity {
             backPrompt.removeCallbacks(hideBackPrompt);
         }
         clearNumericChannelInput();
+        if (channelBar != null) {
+            channelBar.removeCallbacks(periodicUpdateCheck);
+            channelBar.removeCallbacks(diagnosticsFeedbackResult);
+        }
         if (autoUpdater != null) {
             autoUpdater.destroy();
         }

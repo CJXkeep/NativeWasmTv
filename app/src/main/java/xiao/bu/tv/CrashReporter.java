@@ -37,17 +37,36 @@ final class CrashReporter {
         });
     }
 
+    /**
+     * 崩溃前因与崩溃栈写在同一份文件里（I4 决策 2）。
+     * 快照是无锁 volatile 读、不做 IO；本方法自身也绝不允许抛出。
+     */
+    private static void writeFailureSnapshot(PrintWriter writer) {
+        try {
+            String snapshot = PlaybackDiagnostics.snapshotForCrash();
+            if (snapshot == null || snapshot.length() == 0) {
+                return;
+            }
+            writer.println("--- playback failures ---");
+            writer.println(snapshot);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void writeCrash(Context context, Thread thread, Throwable error) {
         FileOutputStream output = null;
         PrintWriter writer = null;
         try {
-            output = new FileOutputStream(new File(context.getFilesDir(), "last-crash.txt"));
+            output = new FileOutputStream(new File(context.getFilesDir(),
+                    PlaybackDiagnostics.CRASH_FILE_NAME));
             writer = new PrintWriter(output);
             writer.println("time=" + System.currentTimeMillis());
             writer.println("thread=" + (thread == null ? "unknown" : thread.getName()));
+            // 崩溃栈在前：读取与发送都按「头部优先」截断，异常类型与消息最有价值。
             if (error != null) {
                 error.printStackTrace(writer);
             }
+            writeFailureSnapshot(writer);
             writer.flush();
             output.getFD().sync();
         } catch (Throwable writeError) {

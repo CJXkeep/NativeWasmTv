@@ -34,6 +34,12 @@ final class LocalControlServer implements Closeable {
         String uploadKu9Script(String fileName, byte[] body) throws Exception;
         Resource playlistSource(String location) throws Exception;
         String mergePlaylist(JSONObject request) throws Exception;
+        /** 诊断只读数据（I4 A5）：失败记录、崩溃、播放态、网络与发送通道状态。 */
+        String diagnosticsJson();
+        /** 主动触发一次诊断发送（I4 A5）；立即返回当前发送状态。 */
+        String sendDiagnostics();
+        /** 主动触发一次更新检查（I4 B2）；立即返回当前检查状态。 */
+        String checkUpdate();
     }
 
     static final class Resource {
@@ -249,6 +255,15 @@ final class LocalControlServer implements Closeable {
             send(socket, 200, "application/json; charset=utf-8",
                     listener.mergePlaylist(new JSONObject(new String(body, "UTF-8")))
                             .getBytes("UTF-8"));
+        } else if ("GET".equals(method) && "/api/diagnostics".equals(path)) {
+            send(socket, 200, "application/json; charset=utf-8",
+                    listener.diagnosticsJson().getBytes("UTF-8"));
+        } else if ("POST".equals(method) && "/api/diagnostics/send".equals(path)) {
+            send(socket, 200, "application/json; charset=utf-8",
+                    listener.sendDiagnostics().getBytes("UTF-8"));
+        } else if ("POST".equals(method) && "/api/update/check".equals(path)) {
+            send(socket, 200, "application/json; charset=utf-8",
+                    listener.checkUpdate().getBytes("UTF-8"));
         } else if ("OPTIONS".equals(method)) {
             send(socket, 204, "text/plain", new byte[0]);
         } else {

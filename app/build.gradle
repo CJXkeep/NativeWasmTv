@@ -13,7 +13,16 @@ if (releaseKeystore.exists() != releaseSigningInfo.exists()) {
 }
 def releaseSigningProperties = new Properties()
 def configuredVersionCode = project.hasProperty('versionCodeOverride')
-        ? Integer.parseInt(project.property('versionCodeOverride').toString()) : 6
+        ? Integer.parseInt(project.property('versionCodeOverride').toString()) : 7
+// I4 诊断发送：接收端凭据默认**不注入**。
+// 理由：BuildConfig 常量会随 APK 分发，反编译即可提取；控制页「诊断与更新 → 高级」可覆盖配置。
+// 自用构建可用 -PdiagnosticWebhook= / -PdiagnosticSecret= 注入，但禁止随公开发布（见文件末尾守卫）。
+def diagnosticWebhook = (project.findProperty('diagnosticWebhook') ?: '').toString().trim()
+def diagnosticSecret = (project.findProperty('diagnosticSecret') ?: '').toString().trim()
+def buildConfigString = { Object value ->
+    String text = value == null ? '' : value.toString()
+    '"' + text.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
 if (releaseSigningAvailable) {
     releaseSigningInfo.withInputStream { releaseSigningProperties.load(it) }
     ['alias', 'storePassword', 'keyPassword'].each { propertyName ->
@@ -47,8 +56,18 @@ android {
         // REQUEST_INSTALL_PACKAGES, while remaining installable on Android 15.
         targetSdkVersion 25
         versionCode configuredVersionCode
-        versionName '1.6.0'
+        versionName '1.7.0'
         testInstrumentationRunner 'xiao.bu.tv.QuickJsInstrumentation'
+        // I4 诊断发送（决策 7）：-PdiagnosticWebhook / -PdiagnosticSecret / -PdiagnosticKeyword
+        // 默认留空：凭据不进源码、不进仓库、不进公开 APK，由控制页「高级」在设备上配置。
+        buildConfigField 'String', 'DIAGNOSTIC_WEBHOOK', buildConfigString(diagnosticWebhook)
+        buildConfigField 'String', 'DIAGNOSTIC_SECRET', buildConfigString(diagnosticSecret)
+        buildConfigField 'String', 'DIAGNOSTIC_KEYWORD',
+                buildConfigString(project.findProperty('diagnosticKeyword') ?: 'nTv')
+        // 仅测试用（I4 E 组回归）：-PupdateManifestUrlOverride=http://host:port/version.json
+        // 为空时走正式 GitHub Release 清单；非空时允许本地清单与任意 APK 地址，用于验证自动更新全链路。
+        buildConfigField 'String', 'UPDATE_MANIFEST_OVERRIDE',
+                buildConfigString(project.findProperty('updateManifestUrlOverride') ?: '')
     }
 
     flavorDimensions 'architecture'
@@ -155,7 +174,7 @@ task generateVersionFile {
         if (!sha25632 || !sha25664) {
             throw new GradleException('Both -PupdateApk32 and -PupdateApk64 are required')
         }
-        String releaseBase = 'https://github.com/buhanzhe/NativeWasmTv/releases/latest/download/'
+        String releaseBase = 'https://github.com/CJXkeep/NativeWasmTv/releases/latest/download/'
 
         def manifest = [
                 versionCode : android.defaultConfig.versionCode,
@@ -176,5 +195,26 @@ task generateVersionFile {
         legacyOutput.setText(manifestJson, 'UTF-8')
         logger.lifecycle("Generated ${output} and ${legacyOutput} (arm32=${sha25632 ?: 'unset'}, "
                 + "arm64=${sha25664 ?: 'unset'})")
+    }
+}
+
+// 诊断接收凭据一旦注入就是 BuildConfig 常量，反编译 APK 即可提取，
+// 因此带凭据的 release 包必须显式确认，避免「自用构建参数忘了清」导致误发布。
+gradle.taskGraph.whenReady { taskGraph ->
+    boolean releaseBuild = taskGraph.allTasks.any { task ->
+        boolean packagingTask = task.name.startsWith('assemble') || task.name.startsWith('bundle')
+        packagingTask && task.name.toLowerCase().contains('release')
+    }
+    boolean embeddedCredential =
+            diagnosticWebhook.length() > 0 || diagnosticSecret.length() > 0
+    if (releaseBuild && embeddedCredential
+            && !project.hasProperty('allowEmbeddedDiagnosticCredential')) {
+        throw new GradleException('拒绝构建带诊断凭据的 release 包：'
+                + '注入的接收地址/加签密钥会随 APK 分发并可被反编译提取。'
+                + '请改在控制页「诊断与更新 → 高级」里配置，'
+                + '或确认只在自用时加 -PallowEmbeddedDiagnosticCredential=true。')
+    }
+    if (embeddedCredential) {
+        logger.lifecycle('[nTv] 已注入诊断接收凭据：仅限自用构建，请勿随公开发布。')
     }
 }

@@ -6,7 +6,8 @@ param(
     [switch]$SkipClean,
     [string]$NdkRoot,
     [switch]$RebuildQuickJs,
-    [switch]$RebuildTls
+    [switch]$RebuildTls,
+    [int]$VersionCode = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -158,7 +159,13 @@ if (!(Test-Path -LiteralPath (Join-Path $repoRoot 'app/src/main/libs/armeabi-v7a
     throw 'Legacy TLS library missing. Run scripts/build-tls.ps1 -NdkRoot <NDK-r14b> first.'
 }
 if (-not $SkipClean) { $gradleTasks += 'clean' }
+# 发版必须递增 versionCode；不传时用 build.gradle 里的默认值。
+$versionArguments = @()
+if ($VersionCode -gt 0) {
+    $versionArguments = @("-PversionCodeOverride=$VersionCode")
+}
 $gradleTasks += @(':app:assembleArm32Release', ':app:assembleArm64Release', '--no-daemon')
+$gradleTasks += $versionArguments
 
 Push-Location $repoRoot
 try {
@@ -228,6 +235,7 @@ $manifestTasks = @(
     "-PreleaseNotes=$ReleaseNotes",
     '--no-daemon'
 )
+$manifestTasks += $versionArguments
 Push-Location $repoRoot
 try {
     & (Join-Path $repoRoot 'gradlew.bat') @manifestTasks
