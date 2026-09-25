@@ -188,7 +188,8 @@ public final class MainActivity extends Activity {
     private final Runnable hideChannelBar = new Runnable() {
         @Override
         public void run() {
-            if (!loadingActive) {
+            // stickyStatus 是坏台终态：提示必须留在屏幕上，直到起播成功或用户换台。
+            if (!loadingActive && !stickyStatus) {
                 channelBar.setVisibility(View.GONE);
             }
         }
@@ -306,6 +307,10 @@ public final class MainActivity extends Activity {
     private int currentChannelIndex;
     private int currentSourceIndex;
     private int triedCustomSources;
+    private int consecutiveChannelSkips;
+    private String lastFailureReason = "";
+    private long lastFailureAt;
+    private boolean stickyStatus;
     private int playbackReadyRequestId = -1;
     private int browsingGroupIndex;
     private int pendingRelativeGroupIndex = -1;
@@ -1184,6 +1189,14 @@ public final class MainActivity extends Activity {
             root.put("video", new JSONObject()
                     .put("width", Math.max(0, videoWidth))
                     .put("height", Math.max(0, videoHeight)));
+            // 播放态与最近一次失败：只读可观测性，不新增设置项
+            root.put("playback", new JSONObject()
+                    .put("state", playbackStateName())
+                    .put("reason", lastFailureReason)
+                    .put("lastErrorAt", lastFailureAt)
+                    .put("attempt", triedCustomSources)
+                    .put("consecutiveSkips", consecutiveChannelSkips)
+                    .put("stickyError", stickyStatus));
             JSONArray jsonGroups = new JSONArray();
             for (int groupPosition = 0; groupPosition < groups.length; groupPosition++) {
                 JSONObject jsonGroup = new JSONObject();
@@ -1241,6 +1254,15 @@ public final class MainActivity extends Activity {
         } catch (JSONException error) {
             return "{\"ok\":false,\"message\":\"状态生成失败\"}";
         }
+    }
+
+    /** 控制页只读播放态：终态 > 加载中 > 缓冲 > 播放中 > 空闲。 */
+    private String playbackStateName() {
+        if (stickyStatus) return "failed";
+        if (loadingActive) return "loading";
+        if (buffering) return "buffering";
+        if (prepared) return "playing";
+        return "idle";
     }
 
     private String handleWebControl(JSONObject request) throws JSONException {
@@ -1892,7 +1914,17 @@ public final class MainActivity extends Activity {
                 group.channels, currentChannelIndex)]);
     }
 
+    /**
+     * 主动换台（按键 / 手势 / 控制页 / 频道列表）。
+     * 连跳上限只约束「自动离开坏台」，用户显式换台视为新一轮，计数在这里重新开始。
+     */
     private void switchChannel(int index) {
+        consecutiveChannelSkips = 0;
+        switchChannelInternal(index);
+    }
+
+    /** 换台的公共动作；不碰连跳计数，自动跳台链路需要自己维护它。 */
+    private void switchChannelInternal(int index) {
         cancelPendingRelativeSwitch();
         clearNumericChannelInput();
         resetPlaybackRecoveryState();
@@ -1903,6 +1935,7 @@ public final class MainActivity extends Activity {
 
     private void startChannel(int index) {
         pendingCjsChannelIndex = -1;
+        stickyStatus = false;
         armCrashRecovery();
         final boolean committedGestureSwitch = channelSwitchAnimating
                 && (channelSwitchDirectionY != 0f || channelSwitchDirectionX != 0f);
@@ -2169,30 +2202,20 @@ public final class MainActivity extends Activity {
         int count = channel.sourceCount();
         if (count <= 1) {
             if (automatic) {
-                abortChannelSwitchAnimation();
-                hideLoading();
-                showChannelBar(channel.name, reason + "，当前频道没有备用线路");
+                handleChannelFailure(channel, reason);
             } else {
                 showChannelBar(channel.name, "当前频道只有一条线路");
             }
             return true;
         }
         if (automatic && !autoSwitchSource) {
-            abortChannelSwitchAnimation();
-            hideLoading();
-            showChannelBar(channel.name, reason + "，请按左右方向键切换线路");
-            Toast.makeText(this, "当前线路不可用，请按左右方向键切换线路",
-                    Toast.LENGTH_LONG).show();
+            showPlaybackTerminal(channel, reason);
             return true;
         }
         if (automatic) {
             int attemptLimit = Math.min(count, AUTO_SWITCH_MAX_ATTEMPTS);
             if (triedCustomSources >= attemptLimit) {
-                abortChannelSwitchAnimation();
-                hideLoading();
-                showChannelBar(channel.name, triedCustomSources >= count
-                        ? "全部 " + count + " 条线路均不可用"
-                        : "已尝试 " + attemptLimit + " 条线路，均无法播放");
+                handleChannelFailure(channel, "已尝试 " + attemptLimit + " 条线路均无法播放");
                 return true;
             }
         }
@@ -2821,6 +2844,9 @@ public final class MainActivity extends Activity {
                 if (what == MEDIA_INFO_VIDEO_RENDERING_START) {
                     videoRenderingStarted = true;
                     playbackReadyRequestId = sourceRequestId;
+                    // 只有真的播出画面才算离开坏台，连续跳过计数在这里复位。
+                    consecutiveChannelSkips = 0;
+                    stickyStatus = false;
                     hideLoading();
                     revealIncomingChannel(sourceRequestId);
                     persistPlayingChannel(channel, sourceRequestId);
@@ -2948,9 +2974,7 @@ public final class MainActivity extends Activity {
                         }, 500L);
                         return true;
                     }
-                    abortChannelSwitchAnimation();
-                    hideLoading();
-                    showChannelBar(channel.name, "播放错误: " + what + "/" + extra);
+                    handleChannelFailure(channel, "播放错误 " + what + "/" + extra);
                 }
                 return true;
             }
@@ -3530,19 +3554,81 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        if (!skipToNextChannel(channel, "网络连接中断")) {
+            showPlaybackTerminal(channel, "网络连接中断");
+        }
+    }
+
+    /**
+     * 频道级失败的唯一出口（原则 4：一切失败必须有终态）。
+     * 先换一个能播的频道，超过连跳上限就停在常驻提示，不再留下无提示的冻帧。
+     *
+     * <p>播放器错误回调可能来自 IJK 的事件线程，而换台要动 View 并弹 Toast，
+     * 所以整个决策与动作都收敛到 UI 线程执行（已在 UI 线程时立即执行，不改变同步语义）。
+     */
+    private void handleChannelFailure(final Channel channel, final String reason) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                lastFailureReason = reason == null ? "" : reason;
+                lastFailureAt = System.currentTimeMillis();
+                if (!skipToNextChannel(channel, reason)) {
+                    showPlaybackTerminal(channel, reason);
+                }
+            }
+        });
+    }
+
+    /** 坏台自动跳过；跳过成功返回 true。计数上限与「相邻即自身」的判定都收在这里。 */
+    private boolean skipToNextChannel(Channel failed, String reason) {
+        if (!PlaybackFailurePolicy.canSkipChannel(autoSwitchSource, consecutiveChannelSkips)) {
+            return false;
+        }
         int[] next = adjacentChannelLocation(currentGroupIndex, currentChannelIndex, 1);
         if (next[0] == currentGroupIndex && next[1] == currentChannelIndex) {
-            abortChannelSwitchAnimation();
-            hideLoading();
-            showChannelBar(channel.name, "网络连接尚未恢复，请稍后重试");
-            return;
+            return false;
         }
-        Log.w(TAG, "Playback recovery exhausted; moving to next channel group="
-                + next[0] + " channel=" + next[1]);
-        currentGroupIndex = next[0];
-        switchChannel(next[1]);
-        Toast.makeText(this, "当前频道无法恢复，已切换到下一频道",
+        consecutiveChannelSkips++;
+        Log.w(TAG, "Skipping failed channel=" + failed.name + " to group=" + next[0]
+                + " channel=" + next[1] + " skip=" + consecutiveChannelSkips + "/"
+                + PlaybackFailurePolicy.SKIP_CHANNEL_MAX_CONSECUTIVE + " reason=" + reason);
+        Toast.makeText(this, failed.name + " 无法播放，已跳到下一频道",
                 Toast.LENGTH_LONG).show();
+        abortChannelSwitchAnimation();
+        currentGroupIndex = next[0];
+        // 走内部切换：switchChannel 会按「主动换台」清掉连跳计数，这里必须保留累计值。
+        switchChannelInternal(next[1]);
+        return true;
+    }
+
+    /** 坏台终态：清掉上一频道的残留帧，留下不会自动消失的提示。 */
+    private void showPlaybackTerminal(final Channel channel, final String reason) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                // 多线路失败会多次到达这里：终态只做一次，重复的 clearLastFrame 会让画面闪。
+                boolean alreadyTerminal = stickyStatus && channel == currentChannel();
+                lastFailureReason = reason == null ? "" : reason;
+                lastFailureAt = System.currentTimeMillis();
+                if (alreadyTerminal) {
+                    return;
+                }
+                abortChannelSwitchAnimation();
+                stickyStatus = true;
+                hideLoading();
+                clearPendingPlayer();
+                releasePlayer();
+                resetVideoLayout();
+                // 只在 release 后还不够：Surface 里排队的旧解码缓冲会把上一频道的画面重新顶上来，
+                // 覆盖成不透明黑帧才是真正的终态（I2 实测的「冻在最后一帧」就是少了这一步）。
+                if (videoView != null && !videoView.clearLastFrame()) {
+                    Log.d(TAG, "Terminal frame could not be cleared");
+                }
+                showChannelBar(channel.name, PlaybackFailurePolicy.terminalStatus(
+                        autoSwitchSource, channel.sourceCount()));
+                Log.w(TAG, "Playback terminal channel=" + channel.name + " reason=" + reason);
+            }
+        });
     }
 
     private void resetPlaybackRecoveryState() {
@@ -4414,7 +4500,7 @@ public final class MainActivity extends Activity {
                 channelProgress.setVisibility(loadingActive ? View.VISIBLE : View.GONE);
                 updateChannelCardEpg(channel);
                 showChannelCard();
-                if (!loadingActive) {
+                if (!loadingActive && !stickyStatus) {
                     channelBar.postDelayed(hideChannelBar, CHANNEL_BAR_TIMEOUT_MS);
                 }
             }
