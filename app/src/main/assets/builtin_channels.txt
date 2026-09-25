@@ -196,6 +196,3 @@ webview://https://yangshipin.cn/tv/home?pid=600190403
 webview://https://yangshipin.cn/tv/home?pid=600171827
 #EXTINF:-1 group-title="卫视频道",新疆卫视
 webview://https://yangshipin.cn/tv/home?pid=600152138
-
-#EXTINF:-1 group-title="卫视频道",凤凰卫视
-https://7612-5516-affc-d88b.kylintv.tv/live/pxinhd_iphone.m3u8
