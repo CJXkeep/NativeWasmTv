@@ -14,7 +14,7 @@ import java.util.*;
 
 /** Online per-site plugins with file integrity checks. Network I/O never holds the runtime monitor. */
 public final class CjsPluginRuntime {
-    public static final int HOST_PROTOCOL = 4;
+    public static final int HOST_PROTOCOL = 5;
     public static final String DEFAULT_MANIFEST_URL =
             "https://raw.githubusercontent.com/TvWasm/cjs/main/catalog.json";
     private static final String TAG = "CjsPlugin";
@@ -52,7 +52,7 @@ public final class CjsPluginRuntime {
         return context;
     }
     private static SharedPreferences preferences() {
-        return requireContext().getSharedPreferences("cjs_sites_v4", Context.MODE_PRIVATE);
+        return requireContext().getSharedPreferences("cjs_sites_v5", Context.MODE_PRIVATE);
     }
     public static String getManifestUrl() {
         return preferences().getString("catalog_url", DEFAULT_MANIFEST_URL);
@@ -74,7 +74,16 @@ public final class CjsPluginRuntime {
             throw new IOException("插件名称无效");
         return value;
     }
-    private static File root() { return new File(requireContext().getFilesDir(), "cjs-sites-v4"); }
+    /** Protocol 5 may offer several native profiles per ABI; prefer the highest usable minSdk. */
+    private static boolean isBetterNativeProfile(JSONObject candidate, JSONObject current) {
+        int sdk = android.os.Build.VERSION.SDK_INT;
+        int candidateMin = candidate.optInt("minSdk", 0);
+        int currentMin = current.optInt("minSdk", 0);
+        if (candidateMin > sdk) return false;
+        if (currentMin > sdk) return true;
+        return candidateMin > currentMin;
+    }
+    private static File root() { return new File(requireContext().getFilesDir(), "cjs-sites-v5"); }
     private static String currentAbi() { return BuildConfig.CJS_PLUGIN_ABI; }
     private static String pref(State s, String key) { return s.id + ":" + currentAbi() + ":" + key; }
     private static File siteRoot(State s) { return new File(new File(root(), s.id), currentAbi()); }
@@ -280,21 +289,36 @@ public final class CjsPluginRuntime {
             File staging = new File(siteRoot, ".staging-" + System.nanoTime());
             if (!staging.mkdirs()) throw new IOException("无法创建暂存目录");
             try {
-                Set<String> downloaded = new HashSet<String>();
                 String module = s.entry.getString("module") + ".so";
+                // Protocol 5 may declare several native profiles for one ABI (for example armv7-base
+                // and armv7-perf); keep the most capable one the running SDK can still load.
+                JSONObject runtimeFile = null;
+                JSONObject nativeFile = null;
                 for (int i = 0; i < files.length(); i++) {
                     JSONObject f = files.getJSONObject(i);
                     String abi = f.getString("abi");
                     if (!"all".equals(abi) && !currentAbi().equals(abi)) continue;
                     String filename = name(f.getString("name"));
-                    if ((!"runtime.json".equals(filename) && !module.equals(filename)) || !downloaded.add(filename))
+                    if ("runtime.json".equals(filename)) {
+                        if (runtimeFile != null) throw new IOException("站点文件声明无效");
+                        runtimeFile = f;
+                    } else if (module.equals(filename)) {
+                        if (nativeFile == null || isBetterNativeProfile(f, nativeFile)) nativeFile = f;
+                    } else {
                         throw new IOException("站点文件声明无效");
-                    byte[] data = download(online(f.getString("url")), filename.endsWith(".so") ? MAX_NATIVE_BYTES : MAX_SCRIPT_BYTES);
+                    }
+                }
+                if (runtimeFile == null || nativeFile == null) throw new IOException("站点插件不完整");
+                JSONObject[] selected = { runtimeFile, nativeFile };
+                for (int i = 0; i < selected.length; i++) {
+                    JSONObject f = selected[i];
+                    String filename = name(f.getString("name"));
+                    byte[] data = download(online(f.getString("url")),
+                            filename.endsWith(".so") ? MAX_NATIVE_BYTES : MAX_SCRIPT_BYTES);
                     verifySha256(data, f.getString("sha256"), filename);
                     if (filename.endsWith(".so")) verifyNativeAbi(data, currentAbi(), filename);
                     writeAndSync(new File(staging, filename), data);
                 }
-                if (downloaded.size() != 2) throw new IOException("站点插件不完整");
                 writeAndSync(new File(staging, "abi.txt"), currentAbi().getBytes("UTF-8"));
                 JSONObject next = readRuntime(s, staging);
                 if (next == null || next.optInt("version") != version) throw new IOException("站点脚本版本无效");

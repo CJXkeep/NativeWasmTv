@@ -1,4 +1,4 @@
-# Website plugins (protocol 4)
+# Website plugins (protocol 5)
 
 The shell uses a plain JSON `catalog.json` to discover independent site releases. It only
 installs the current channel's site, containing its own `runtime.json` and one native
@@ -32,13 +32,16 @@ or up to three `streams`. The management UI displays advertised choices only.
 Cached startup doesn't wait for version checks; first video frame schedules a worker.
 Network work never holds the monitor needed by playback/UI. Active script/native versions
 remain pinned until the next process, independently for each website. Failed pending
-validation preserves the active version. Version 3 storage is never loaded by v4.
+validation preserves the active version. Version 3 storage is never loaded by v5, and
+version 4 caches are not reused either.
 On first use in a process, a 20-byte ELF header check rejects a wrong-ABI library.
 An incomplete, unused site cache can be replaced by a fully verified staged download
 of the same version. Files already pinned by this process are never replaced.
 
 Upgrading from protocol 3 downloads each site once into the new namespace; subsequent
-cached starts use the local site immediately. The protocol 4 catalog requires a v4 host.
+cached starts use the local site immediately. Upgrading from protocol 4 behaves the same
+way: version 4 caches are never loaded. The protocol 5 catalog requires a v5 host, and a
+v4 host rejects it as incompatible.
 
 The old CCTV HTTP implementation has moved to the site's JS. Optional `ttlSec` (max 600)
 keeps resolved URLs in a bounded cache keyed by site, script digest, URL and quality, so
@@ -68,3 +71,29 @@ Each runtime has memory/stack limits and cancellation/deadline handling; it is r
 after execution. Yangshipin's browser authorization and the separate Ku9 resolver remain
 on their existing paths. See [API 15 test report](compatibility-android-4.0.md) and
 [engine/build documentation](../native/quickjs/README.md).
+
+## Protocol 5 (2026-09-24)
+
+Protocol 5 is a soft upgrade over 4. `catalog.json`, `sites/*/version.cjs` and
+`runtime.json` keep their previous shape; only the protocol/version numbers change, so a
+v4 host simply rejects the v5 catalog as incompatible.
+
+Two behaviours do change:
+
+- **New cache namespace.** Site caches live in SharedPreferences `cjs_sites_v5` and the
+  `cjs-sites-v5` directory. Version 4 caches (and 3) are never loaded, so every site is
+  downloaded once after the upgrade.
+- **Several native profiles per ABI.** `plugin.json` `.so` entries may carry `profile`,
+  `minSdk` and `ndk`, and one ABI can advertise more than one variant (ARM32 ships
+  `armv7-base` minSdk 14 and `armv7-perf` minSdk 19; ARM64 ships a single entry). The host
+  collects every candidate matching the device ABI and keeps the highest usable `minSdk`
+  (`isBetterNativeProfile`), instead of failing on duplicate file names.
+
+Validation on MuMu instance 1 (`127.0.0.1:16416`, Android 15 / SDK 35, no `armeabi-v7a`):
+
+- `CJS plugin activated` with catalog downloaded to `files/cjs-sites-v5/catalog.json`
+- `yangshipin.cn/arm64-v8a/2` installed (`abi.txt`, `runtime.json`, `yangshipin.so`) with a
+  matching SHA-256
+- First video frame on CCTV-1 at 1920x1080 (`decoder=hardware`)
+- 15 s of playback traffic: +5 KB before the fix (protocol mismatch, no stream) vs +6.9 MB
+  after
